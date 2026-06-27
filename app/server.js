@@ -49,19 +49,6 @@ app.get('/api/transactions', async (req, res) => {
     }
 });
 
-app.get('/api/transactions/:id', async (req, res) => {
-    const { id } = req.params;
-    try {
-        const result = await pool.query('SELECT * FROM transactions WHERE id = $1', [id]);
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Transaction not found' });
-        }
-        res.json(result.rows[0]);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
 app.get('/api/transactions/category/:category', async (req, res) => {
     const { category } = req.params;
     try {
@@ -158,8 +145,6 @@ app.get('/api/income/category/:category', async (req, res) => {
     }
 });
 
-app.listen(3000, () => console.log('Server running on port 3000'));
-
 app.post('/api/transactions', async (req, res) => {
     const { amount, category, description, date, type } = req.body;
     try {
@@ -185,3 +170,5 @@ app.delete('/api/transactions/:id', async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+
+app.listen(3000, () => console.log('Server running on port 3000'));
