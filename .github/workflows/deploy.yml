@@ -15,4 +15,3 @@ jobs:
       - name: Copy files to container
         run: |
           docker cp app/. finance-dashboard-app-1:/app/
-          docker restart finance-dashboard-app-1
