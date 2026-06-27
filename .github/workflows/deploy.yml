@@ -7,26 +7,12 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Copy files to server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          source: "app/"
-          target: "/opt/finance-dashboard/"
-
-      - name: Restart app container
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          script: |
-            docker cp /opt/finance-dashboard/app/. finance-dashboard-app-1:/app/
-            docker restart finance-dashboard-app-1
+      - name: Copy files to container
+        run: |
+          docker cp app/. finance-dashboard-app-1:/app/
+          docker restart finance-dashboard-app-1
