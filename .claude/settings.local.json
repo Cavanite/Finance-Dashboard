@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(Test-Path *)"
+      "Bash(Test-Path *)",
+      "Bash(node -e \"console.log\\(require\\('./node_modules/@tailwindcss/vite/package.json'\\).version\\)\")",
+      "Bash(node -e \"console.log\\(require\\('./node_modules/tailwindcss/package.json'\\).version\\)\")"
     ]
   }
 }
