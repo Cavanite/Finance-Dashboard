@@ -102,6 +102,19 @@ app.get ('/api/savings', async (req, res) => {
     }
 });
 
+app.post('/api/savings', async (req, res) => {
+    const { amount, category, description, date } = req.body;
+    try {
+        const result = await pool.query(
+            'INSERT INTO transactions (amount, category, description, date, type) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+            [amount, category, description, date, 'savings']
+        );
+        res.status(201).json(result.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.get('/api/expenses', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM transactions WHERE type = $1', ['expense']);

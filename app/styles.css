@@ -1,12 +1,55 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap');
 
+@theme {
+  --font-family-display: 'Sora', sans-serif;
+  --font-family-sans:    'DM Sans', sans-serif;
+  --font-family-mono:    'DM Mono', monospace;
 
-.App-header {
-    background-color: #282c34;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-size: calc(10px + 2vmin);
-    color: white;
+  --color-base:    #07090f;
+  --color-panel:   #0d1020;
+  --color-panel2:  #111528;
+  --color-side:    #060812;
+  --color-rim:     #181d30;
+  --color-rim2:    #222840;
+  --color-rim3:    #2a3050;
+
+  --color-income:  #05d896;
+  --color-expense: #ff3d6b;
+  --color-savings: #2fb8f0;
+
+  --color-accent:  #5e60f0;
+  --color-accent2: #7173f5;
+
+  --color-fg1: #eceef8;
+  --color-fg2: #7b82a2;
+  --color-fg3: #363d5a;
+}
+
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; -webkit-font-smoothing: antialiased; }
+  #root { height: 100%; }
+  * { scrollbar-width: thin; scrollbar-color: #222840 transparent; }
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #222840; border-radius: 4px; }
+  input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.5) brightness(0.8); }
+  input[type="number"] { -moz-appearance: textfield; }
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+  select option { background: #0d1020; }
+}
+
+@keyframes fadeUp  { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(14px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes blink   { 0%,100% { opacity: 0.2; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1); } }
+@keyframes spin    { to { transform: rotate(360deg); } }
+
+@layer utilities {
+  .anim-fade-up  { animation: fadeUp  0.45s ease both; }
+  .anim-fade-in  { animation: fadeIn  0.15s ease; }
+  .anim-slide-up { animation: slideUp 0.22s cubic-bezier(0.34,1.56,0.64,1); }
+  .spin-anim     { animation: spin    0.7s linear infinite; }
 }
