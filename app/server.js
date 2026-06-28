@@ -38,7 +38,20 @@ app.get('/api/db-health', async (req, res) => {
     }
 });
 
-
+app.get('/api/summary', async (req, res) => {
+    try {
+        const totalIncomeResult = await pool.query('SELECT SUM(amount) AS total_income FROM transactions WHERE type = $1', ['income']);
+        const totalExpensesResult = await pool.query('SELECT SUM(amount) AS total_expenses FROM transactions WHERE type = $1', ['expense']);
+        const totalSavingsResult = await pool.query('SELECT SUM(amount) AS total_savings FROM transactions WHERE type = $1', ['savings']);
+        res.json({
+            totalIncome: totalIncomeResult.rows[0].total_income,
+            totalExpenses: totalExpensesResult.rows[0].total_expenses,
+            totalSavings: totalSavingsResult.rows[0].total_savings
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
 app.get('/api/transactions', async (req, res) => {
         try {
