@@ -45,6 +45,198 @@ function EditIcon()   { return <svg width="12" height="12" viewBox="0 0 24 24" f
 function SpinDot()    { return <span className="w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent flex-shrink-0" style={{ animation: 'spin 0.7s linear infinite', display: 'inline-block' }} />; }
 
 /* ─────────────────────────────────────────────── */
+/*  RECURRING SAVINGS                              */
+/* ─────────────────────────────────────────────── */
+const LS_RECURRING = 'ff_recurring_savings';
+
+function getRecurring()   { try { return JSON.parse(localStorage.getItem(LS_RECURRING) || '[]'); } catch { return []; } }
+function saveRecurring(r) { localStorage.setItem(LS_RECURRING, JSON.stringify(r)); }
+
+function recurringStatus(tpl) {
+  const now = new Date();
+  const ym  = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  if (tpl.lastPosted?.startsWith(ym))        return 'posted';
+  if (now.getDate() >= Number(tpl.dayOfMonth)) return 'due';
+  return 'upcoming';
+}
+
+function RepeatIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/>
+      <polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/>
+    </svg>
+  );
+}
+
+function RecurringSavingsSection({ onPosted }) {
+  const [templates, setTemplates] = useState(getRecurring);
+  const [showForm,  setShowForm]  = useState(false);
+  const [posting,   setPosting]   = useState(null);
+  const [form, setForm] = useState({ name: '', amount: '', goalName: '', dayOfMonth: '1' });
+  const setF = (k) => (e) => setForm(p => ({ ...p, [k]: e.target.value }));
+
+  function addTemplate(e) {
+    e.preventDefault();
+    if (!form.name || !form.amount || Number(form.amount) <= 0) return;
+    const next = [...templates, { id: Date.now().toString(), ...form, amount: Number(form.amount), lastPosted: null }];
+    setTemplates(next); saveRecurring(next);
+    setForm({ name: '', amount: '', goalName: '', dayOfMonth: '1' });
+    setShowForm(false);
+  }
+
+  function deleteTemplate(id) {
+    const next = templates.filter(t => t.id !== id);
+    setTemplates(next); saveRecurring(next);
+  }
+
+  async function postNow(tpl) {
+    setPosting(tpl.id);
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const res = await fetch('/api/savings', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount:      tpl.amount,
+          category:    tpl.goalName || 'Savings',
+          description: tpl.name,
+          date:        today,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      const ym   = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+      const next = templates.map(t => t.id === tpl.id ? { ...t, lastPosted: ym } : t);
+      setTemplates(next); saveRecurring(next);
+      onPosted?.();
+    } finally {
+      setPosting(null);
+    }
+  }
+
+  const hasDue = templates.some(t => recurringStatus(t) === 'due');
+
+  return (
+    <div className="mb-6">
+      {hasDue && (
+        <div className="mb-3 px-4 py-3 rounded-xl text-[12.5px] font-semibold flex items-center gap-2"
+          style={{ background: 'rgba(47,184,240,0.1)', color: BLUE, border: '1px solid rgba(47,184,240,0.2)' }}>
+          <RepeatIcon /> Recurring savings are due — post them to your database below.
+        </div>
+      )}
+      <div className="bg-panel border border-rim rounded-2xl overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-rim">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(47,184,240,0.12)', color: BLUE }}>
+              <RepeatIcon />
+            </div>
+            <div>
+              <h2 className="font-display text-[14.5px] font-bold tracking-tight">Recurring Savings</h2>
+              <p className="text-[11.5px] text-fg3">Auto-post a fixed amount each month</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowForm(f => !f)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12.5px] font-semibold cursor-pointer border transition-colors"
+            style={{ background: showForm ? 'rgba(47,184,240,0.18)' : 'rgba(47,184,240,0.1)', color: BLUE, borderColor: 'rgba(47,184,240,0.22)' }}>
+            {showForm ? '× Cancel' : <><PlusIcon /> New recurring</>}
+          </button>
+        </div>
+
+        {showForm && (
+          <form onSubmit={addTemplate} className="px-6 py-4 border-b border-rim grid gap-3" style={{ gridTemplateColumns: 'repeat(4, 1fr)', background: 'rgba(47,184,240,0.02)' }}>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-fg2">Name</label>
+              <input type="text" value={form.name} onChange={setF('name')} placeholder="Monthly savings…"
+                className={iCls} style={iStyle} onFocus={bFocus} onBlur={blurO} required />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-fg2">Amount (€)</label>
+              <input type="number" step="0.01" min="0.01" value={form.amount} onChange={setF('amount')} placeholder="500.00"
+                className={iCls} style={iStyle} onFocus={bFocus} onBlur={blurO} required />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-fg2">Goal / Category</label>
+              <input type="text" value={form.goalName} onChange={setF('goalName')} placeholder="Emergency Fund…"
+                className={iCls} style={iStyle} onFocus={bFocus} onBlur={blurO} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-fg2">Day of month</label>
+              <input type="number" min="1" max="28" value={form.dayOfMonth} onChange={setF('dayOfMonth')}
+                className={iCls} style={iStyle} onFocus={bFocus} onBlur={blurO} />
+            </div>
+            <div className="col-span-4 flex justify-end">
+              <button type="submit" className="px-5 py-2 rounded-md text-[13px] font-bold text-white cursor-pointer"
+                style={{ background: BLUE }}>Save template</button>
+            </div>
+          </form>
+        )}
+
+        {templates.length === 0 && !showForm ? (
+          <div className="flex flex-col items-center justify-center py-10 gap-2 text-fg3">
+            <div className="opacity-20 mb-1" style={{ color: BLUE }}><RepeatIcon /></div>
+            <p className="text-[13px] font-semibold text-fg2">No recurring savings yet</p>
+            <p className="text-[12px]">Set a fixed monthly amount to automatically post to your savings.</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-rim">
+            {templates.map(tpl => {
+              const status = recurringStatus(tpl);
+              const days   = Number(tpl.dayOfMonth) - new Date().getDate();
+              return (
+                <div key={tpl.id} className="flex items-center justify-between px-6 py-4 gap-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: BLUE }} />
+                    <div className="min-w-0">
+                      <p className="font-semibold text-[13.5px] truncate">{tpl.name}</p>
+                      <p className="text-[11.5px] text-fg3">
+                        {tpl.goalName && <span className="mr-2">{tpl.goalName} ·</span>}
+                        Day {tpl.dayOfMonth} of each month
+                      </p>
+                    </div>
+                  </div>
+                  <p className="font-mono font-bold text-[14px] flex-shrink-0" style={{ color: BLUE }}>{fmt(tpl.amount)}</p>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {status === 'posted' && (
+                      <span className="px-2.5 py-1 rounded-full text-[11px] font-bold" style={{ background: 'rgba(5,216,150,0.1)', color: '#05d896' }}>
+                        ✓ Posted this month
+                      </span>
+                    )}
+                    {status === 'due' && (
+                      <button onClick={() => postNow(tpl)} disabled={posting === tpl.id}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold cursor-pointer transition-all disabled:opacity-50"
+                        style={{ background: `${BLUE}18`, color: BLUE, border: `1px solid ${BLUE}30` }}
+                        onMouseEnter={e => { e.currentTarget.style.background = `${BLUE}28`; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = `${BLUE}18`; }}>
+                        {posting === tpl.id
+                          ? <><SpinDot /> Posting…</>
+                          : <><PlusIcon /> Post to database</>}
+                      </button>
+                    )}
+                    {status === 'upcoming' && (
+                      <span className="px-2.5 py-1 rounded-full text-[11px] font-medium text-fg3" style={{ background: '#181d30' }}>
+                        In {days} day{days !== 1 ? 's' : ''}
+                      </span>
+                    )}
+                    <button onClick={() => deleteTemplate(tpl.id)}
+                      className="w-7 h-7 rounded-md border border-rim2 flex items-center justify-center text-fg3 transition-all cursor-pointer"
+                      style={{ background: 'transparent' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,61,107,0.1)'; e.currentTarget.style.color = '#ff3d6b'; e.currentTarget.style.borderColor = '#ff3d6b'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = '';   e.currentTarget.style.color = ''; e.currentTarget.style.borderColor = ''; }}>
+                      <TrashIcon />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────── */
 /*  GOAL CARD                                      */
 /* ─────────────────────────────────────────────── */
 function GoalCard({ goal, onAddTo, onDelete, onEdit }) {
@@ -437,6 +629,9 @@ export default function SavingsPage({ onMutate }) {
           </div>
         </div>
       </div>
+
+      {/* ── RECURRING ───────────────────────────── */}
+      <RecurringSavingsSection onPosted={() => { loadData(); onMutate?.(); }} />
 
       {/* ── GOALS ───────────────────────────────── */}
       <GoalsSection onQuickAdd={handleQuickAdd} />

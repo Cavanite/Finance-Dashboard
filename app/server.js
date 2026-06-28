@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto  = require('crypto');
 const { Pool } = require('pg');
 
 const app = express();
@@ -6,6 +7,28 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 app.use(express.json());
 app.use(express.static('/app/public'));
+
+function authToken() {
+    return crypto
+        .createHmac('sha256', process.env.AUTH_PASSWORD || 'secret')
+        .update(process.env.AUTH_USER || 'admin')
+        .digest('hex');
+}
+
+app.post('/api/login', (req, res) => {
+    const { username, password } = req.body;
+    if (username === process.env.AUTH_USER && password === process.env.AUTH_PASSWORD) {
+        return res.json({ token: authToken() });
+    }
+    res.status(401).json({ error: 'Invalid username or password' });
+});
+
+app.use('/api', (req, res, next) => {
+    if (req.path === '/login') return next();
+    const header = req.headers.authorization;
+    if (header === `Bearer ${authToken()}`) return next();
+    res.status(401).json({ error: 'Unauthorized' });
+});
 
 (async () => {
     try {

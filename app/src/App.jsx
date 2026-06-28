@@ -4,6 +4,7 @@ import TransactionList from '../Assets/Components/TransactionList';
 import IncomePage from '../Assets/Components/IncomePage';
 import SavingsPage from '../Assets/Components/SavingsPage';
 import AddTransactionModal from '../Assets/Components/AddTransactionModal';
+import LoginPage from '../Assets/Components/LoginPage';
 import '../styles.css';
 
 const NAV = [
@@ -60,11 +61,19 @@ const PAGE_TITLE = {
 };
 
 export default function App() {
+  const [isAuth,    setIsAuth]    = useState(() => !!localStorage.getItem('ff_token'));
   const [view,      setView]      = useState('dashboard');
   const [showModal, setShowModal] = useState(false);
   const [tick,      setTick]      = useState(0);
 
   const refresh = () => setTick(t => t + 1);
+
+  function handleLogout() {
+    localStorage.removeItem('ff_token');
+    setIsAuth(false);
+  }
+
+  if (!isAuth) return <LoginPage onLogin={() => setIsAuth(true)} />;
 
   function renderView() {
     if (view === 'dashboard') return <Dashboard key={tick} />;
@@ -146,18 +155,30 @@ export default function App() {
             <h1 className="font-display text-[18px] font-bold tracking-tight">{PAGE_TITLE[view]}</h1>
             <p className="text-[11px] text-fg3 mt-px">Personal finance overview</p>
           </div>
-          <button
-            onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-md font-semibold text-[13.5px] text-white transition-all duration-150 hover:-translate-y-px active:translate-y-0 cursor-pointer"
-            style={{ background: '#5e60f0' }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#7173f5'; e.currentTarget.style.boxShadow = '0 6px 18px rgba(94,96,240,0.4)'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#5e60f0'; e.currentTarget.style.boxShadow = ''; }}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-            Add Transaction
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowModal(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-md font-semibold text-[13.5px] text-white transition-all duration-150 hover:-translate-y-px active:translate-y-0 cursor-pointer"
+              style={{ background: '#5e60f0' }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#7173f5'; e.currentTarget.style.boxShadow = '0 6px 18px rgba(94,96,240,0.4)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#5e60f0'; e.currentTarget.style.boxShadow = ''; }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              Add Transaction
+            </button>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-md font-medium text-[13px] text-fg2 border border-rim transition-colors duration-150 hover:text-fg1 hover:border-rim2 cursor-pointer"
+              style={{ background: 'transparent' }}
+              title="Sign out"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+            </button>
+          </div>
         </header>
 
         {/* Page content */}
