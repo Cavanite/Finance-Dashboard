@@ -224,8 +224,8 @@ function RecurringSavingsSection({ onPosted }) {
                       onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,61,107,0.1)'; e.currentTarget.style.color = '#ff3d6b'; e.currentTarget.style.borderColor = '#ff3d6b'; }}
                       onMouseLeave={e => { e.currentTarget.style.background = '';   e.currentTarget.style.color = ''; e.currentTarget.style.borderColor = ''; }}>
                       <TrashIcon />
-                    </button>
-                  </div>
+                        </button>
+                    </div>
                 </div>
               );
             })}
