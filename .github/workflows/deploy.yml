@@ -13,5 +13,13 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Copy files to container
-        run: |
-          docker cp app/. finance-dashboard-app-1:/app/
+        run: docker cp app/. finance-dashboard-app-1:/app/
+
+      - name: Install dependencies
+        run: docker exec finance-dashboard-app-1 sh -c "cd /app && npm install"
+
+      - name: Build frontend
+        run: docker exec finance-dashboard-app-1 sh -c "cd /app && npm run build"
+
+      - name: Restart server
+        run: docker restart finance-dashboard-app-1
