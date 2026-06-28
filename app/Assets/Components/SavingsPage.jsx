@@ -177,7 +177,7 @@ function RecurringSavingsSection({ onPosted }) {
             <div className="opacity-20 mb-1" style={{ color: BLUE }}><RepeatIcon /></div>
             <p className="text-[13px] font-semibold text-fg2">No recurring savings yet</p>
             <p className="text-[12px]">Set a fixed monthly amount to automatically post to your savings.</p>
-          </div>
+            </div>
         ) : (
           <div className="divide-y divide-rim">
             {templates.map(tpl => {
