@@ -100,9 +100,10 @@ export default function Dashboard() {
   const [loading,      setLoading]      = useState(true);
 
   useEffect(() => {
+    const authHeaders = { Authorization: `Bearer ${localStorage.getItem('ff_token')}` };
     Promise.all([
-      fetch('/api/summary').then(r => r.json()).catch(() => ({})),
-      fetch('/api/transactions').then(r => r.json()).catch(() => []),
+      fetch('/api/summary', { headers: authHeaders }).then(r => r.json()).catch(() => ({})),
+      fetch('/api/transactions', { headers: authHeaders }).then(r => r.json()).catch(() => []),
     ]).then(([sum, txs]) => {
       setSummary(sum);
       setTransactions(Array.isArray(txs) ? txs : []);

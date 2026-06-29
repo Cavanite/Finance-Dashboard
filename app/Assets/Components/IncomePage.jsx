@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import AddTransactionModal from './AddTransactionModal';
 
 /* ── helpers ──────────────────────────────────── */
 const LS_KEY = 'ff_recurring_income';
@@ -100,6 +101,7 @@ function RecurringSection({ onNewTransaction, onMutate }) {
   const [posting,   setPosting]   = useState(null);
   const [justPosted, setJustPosted] = useState(null);
   const [tplError,  setTplError]  = useState('');
+  const authHeaders = { 'Authorization': `Bearer ${localStorage.getItem('ff_token')}` };
 
   const [form, setForm] = useState({
     label: '', amount: '', category: 'Salary',
@@ -148,7 +150,7 @@ function RecurringSection({ onNewTransaction, onMutate }) {
 
       const res = await fetch('/api/transactions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({
           amount:      tpl.amount,
           type:        'income',
@@ -396,13 +398,15 @@ export default function IncomePage({ onMutate }) {
   const [submitting, setSubmitting] = useState(false);
   const [error,      setError]      = useState('');
   const [success,    setSuccess]    = useState(false);
+  const [editingTx,  setEditingTx]  = useState(null);
+  const authHeaders = { 'Authorization': `Bearer ${localStorage.getItem('ff_token')}` };
 
   useEffect(() => { loadData(); }, []);
 
   async function loadData() {
     setLoading(true);
     try {
-      const data = await fetch('/api/transactions').then(r => r.json());
+      const data = await fetch('/api/transactions', { headers: authHeaders }).then(r => r.json());
       setTransactions((Array.isArray(data) ? data : []).filter(t => t.type === 'income'));
     } finally {
       setLoading(false);
@@ -420,7 +424,7 @@ export default function IncomePage({ onMutate }) {
     try {
       const res = await fetch('/api/transactions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({ ...form, amount: amt, type: 'income' }),
       });
       if (!res.ok) throw new Error();
@@ -440,7 +444,7 @@ export default function IncomePage({ onMutate }) {
   async function handleDelete(id) {
     setDeleting(id);
     try {
-      await fetch(`/api/transactions/${id}`, { method: 'DELETE' });
+      await fetch(`/api/transactions/${id}`, { method: 'DELETE', headers: authHeaders });
       setTransactions(prev => prev.filter(t => t.id !== id));
       onMutate?.();
     } finally {
@@ -450,6 +454,12 @@ export default function IncomePage({ onMutate }) {
 
   function handleNewRecurring(tx) {
     setTransactions(prev => [tx, ...prev]);
+  }
+
+  function handleEditSuccess() {
+    setEditingTx(null);
+    loadData();
+    onMutate?.();
   }
 
   const total     = transactions.reduce((s, t) => s + Number(t.amount), 0);
@@ -571,51 +581,100 @@ export default function IncomePage({ onMutate }) {
                 <p className="text-[12px]">Use the form on the left or post a recurring entry above.</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[680px]">
-                  <thead>
-                    <tr style={{ background: 'rgba(255,255,255,0.01)' }}>
-                      {['Date', 'Description', 'Category', 'Amount', ''].map((h, i) => (
-                        <th key={i} className="text-left px-5 py-3 text-[10px] font-bold uppercase tracking-[0.1em] text-fg3 border-b border-rim whitespace-nowrap">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sorted.map(tx => (
-                      <tr key={tx.id} className="border-b border-rim last:border-0"
-                          style={{ transition: 'background 0.15s' }}
-                          onMouseEnter={e => e.currentTarget.style.background = 'rgba(5,216,150,0.025)'}
-                          onMouseLeave={e => e.currentTarget.style.background = ''}>
-                        <td className="px-5 py-3.5 font-mono text-[11.5px] text-fg3 whitespace-nowrap">{fmtDate(tx.date)}</td>
-                        <td className="px-5 py-3.5 text-[13px] font-medium text-fg1 max-w-[200px]">
-                          <span className="block truncate">{tx.description || '—'}</span>
-                        </td>
-                        <td className="px-5 py-3.5">
-                          {tx.category
-                            ? <span className="inline-block px-2.5 py-0.5 rounded-md text-[11.5px] font-medium" style={{ background: 'rgba(5,216,150,0.1)', color: '#05d896' }}>{tx.category}</span>
-                            : <span className="text-fg3">—</span>}
-                        </td>
-                        <td className="px-5 py-3.5 font-mono font-bold text-[14px] whitespace-nowrap" style={{ color: '#05d896' }}>{fmt(tx.amount)}</td>
-                        <td className="px-5 py-3.5">
+              <>
+                <div className="sm:hidden p-3 space-y-2">
+                  {sorted.map(tx => (
+                    <div key={tx.id} className="rounded-xl border border-rim p-3 bg-base/30">
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <span className="font-mono text-[11px] text-fg3">{fmtDate(tx.date)}</span>
+                        <span className="font-mono font-bold text-[13px]" style={{ color: '#05d896' }}>{fmt(tx.amount)}</span>
+                      </div>
+                      <p className="text-[13px] font-semibold text-fg1 truncate">{tx.description || '—'}</p>
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        {tx.category
+                          ? <span className="inline-block px-2 py-0.5 rounded-md text-[11px] font-medium" style={{ background: 'rgba(5,216,150,0.1)', color: '#05d896' }}>{tx.category}</span>
+                          : <span className="text-fg3 text-[11px]">—</span>}
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => setEditingTx(tx)} className="w-8 h-8 rounded-md border border-rim2 flex items-center justify-center text-fg2">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+                            </svg>
+                          </button>
                           <button onClick={() => handleDelete(tx.id)} disabled={deleting === tx.id}
-                            className="w-7 h-7 rounded-md border border-rim2 flex items-center justify-center text-fg3 transition-all duration-150 cursor-pointer disabled:opacity-50"
-                            style={{ background: 'transparent' }}
-                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,61,107,0.1)'; e.currentTarget.style.color = '#ff3d6b'; e.currentTarget.style.borderColor = '#ff3d6b'; }}
-                            onMouseLeave={e => { e.currentTarget.style.background = ''; e.currentTarget.style.color = ''; e.currentTarget.style.borderColor = ''; }}>
+                            className="w-8 h-8 rounded-md border border-rim2 flex items-center justify-center text-fg2 disabled:opacity-50">
                             {deleting === tx.id
                               ? <span className="w-3 h-3 rounded-full border border-fg3 border-t-transparent" style={{ animation: 'spin 0.7s linear infinite' }} />
                               : <TrashIcon />}
                           </button>
-                        </td>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="hidden sm:block overflow-x-auto">
+                  <table className="w-full min-w-[680px]">
+                    <thead>
+                      <tr style={{ background: 'rgba(255,255,255,0.01)' }}>
+                        {['Date', 'Description', 'Category', 'Amount', ''].map((h, i) => (
+                          <th key={i} className="text-left px-5 py-3 text-[10px] font-bold uppercase tracking-[0.1em] text-fg3 border-b border-rim whitespace-nowrap">{h}</th>
+                        ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {sorted.map(tx => (
+                        <tr key={tx.id} className="border-b border-rim last:border-0"
+                            style={{ transition: 'background 0.15s' }}
+                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(5,216,150,0.025)'}
+                            onMouseLeave={e => e.currentTarget.style.background = ''}>
+                          <td className="px-5 py-3.5 font-mono text-[11.5px] text-fg3 whitespace-nowrap">{fmtDate(tx.date)}</td>
+                          <td className="px-5 py-3.5 text-[13px] font-medium text-fg1 max-w-[200px]">
+                            <span className="block truncate">{tx.description || '—'}</span>
+                          </td>
+                          <td className="px-5 py-3.5">
+                            {tx.category
+                              ? <span className="inline-block px-2.5 py-0.5 rounded-md text-[11.5px] font-medium" style={{ background: 'rgba(5,216,150,0.1)', color: '#05d896' }}>{tx.category}</span>
+                              : <span className="text-fg3">—</span>}
+                          </td>
+                          <td className="px-5 py-3.5 font-mono font-bold text-[14px] whitespace-nowrap" style={{ color: '#05d896' }}>{fmt(tx.amount)}</td>
+                          <td className="px-5 py-3.5">
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => setEditingTx(tx)}
+                                className="w-7 h-7 rounded-md border border-rim2 flex items-center justify-center text-fg3 transition-all duration-150 cursor-pointer"
+                                style={{ background: 'transparent' }}>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+                                </svg>
+                              </button>
+                              <button onClick={() => handleDelete(tx.id)} disabled={deleting === tx.id}
+                                className="w-7 h-7 rounded-md border border-rim2 flex items-center justify-center text-fg3 transition-all duration-150 cursor-pointer disabled:opacity-50"
+                                style={{ background: 'transparent' }}
+                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,61,107,0.1)'; e.currentTarget.style.color = '#ff3d6b'; e.currentTarget.style.borderColor = '#ff3d6b'; }}
+                                onMouseLeave={e => { e.currentTarget.style.background = ''; e.currentTarget.style.color = ''; e.currentTarget.style.borderColor = ''; }}>
+                                {deleting === tx.id
+                                  ? <span className="w-3 h-3 rounded-full border border-fg3 border-t-transparent" style={{ animation: 'spin 0.7s linear infinite' }} />
+                                  : <TrashIcon />}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </div>
         </div>
       </div>
+
+      {editingTx && (
+        <AddTransactionModal
+          transaction={editingTx}
+          onClose={() => setEditingTx(null)}
+          onSuccess={handleEditSuccess}
+        />
+      )}
     </div>
   );
 }

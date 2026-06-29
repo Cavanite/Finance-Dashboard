@@ -39,7 +39,10 @@ export default function AddTransactionModal({ onClose, onSuccess, transaction = 
       const url = transaction ? `/api/transactions/${transaction.id}` : '/api/transactions';
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('ff_token')}`,
+        },
         body: JSON.stringify({ ...form, amount: Number(form.amount) }),
       });
       if (!res.ok) throw new Error('Server error');
@@ -94,7 +97,7 @@ export default function AddTransactionModal({ onClose, onSuccess, transaction = 
         <form onSubmit={handleSubmit} className="px-6 py-5 flex flex-col gap-4">
 
           {/* Amount + Type */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
               <label className="text-[11px] font-bold uppercase tracking-[0.07em] text-fg2">Amount (€)</label>
               <input
@@ -136,7 +139,7 @@ export default function AddTransactionModal({ onClose, onSuccess, transaction = 
           </div>
 
           {/* Category + Date */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
               <label className="text-[11px] font-bold uppercase tracking-[0.07em] text-fg2">Category</label>
               <input
@@ -190,7 +193,7 @@ export default function AddTransactionModal({ onClose, onSuccess, transaction = 
           )}
 
           {/* Footer buttons */}
-          <div className="flex justify-end gap-2 pt-1">
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-1">
             <button
               type="button"
               onClick={onClose}
@@ -214,7 +217,7 @@ export default function AddTransactionModal({ onClose, onSuccess, transaction = 
                   <span className="w-3.5 h-3.5 rounded-full border-2 border-white/30 border-t-white" style={{ animation: 'spin 0.7s linear infinite' }} />
                   Saving…
                 </span>
-              ) : 'Add Transaction'}
+              ) : (transaction ? 'Save Changes' : 'Add Transaction')}
             </button>
           </div>
         </form>

@@ -148,11 +148,30 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-app.use('/api', (req, res, next) => {
+app.use('/api', async (req, res, next) => {
     if (req.path === '/login') return next();
-    const header = req.headers.authorization;
-    if (header === `Bearer ${authToken()}`) return next();
-    res.status(401).json({ error: 'Unauthorized' });
+    const header = req.headers.authorization || '';
+    const token = header.startsWith('Bearer ') ? header.slice(7) : '';
+    if (!token) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+    if (token === authToken()) {
+        return next();
+    }
+    try {
+        const usersResult = await pool.query('SELECT username FROM users WHERE is_active = true');
+        const secret = process.env.AUTH_PASSWORD || 'secret';
+        const isValidUserToken = usersResult.rows.some(({ username }) => {
+            const expectedToken = crypto.createHmac('sha256', secret).update(username).digest('hex');
+            return expectedToken === token;
+        });
+        if (isValidUserToken) {
+            return next();
+        }
+        return res.status(401).json({ error: 'Unauthorized' });
+    } catch (err) {
+        return res.status(500).json({ error: err.message });
+    }
 });
 
 (async () => {

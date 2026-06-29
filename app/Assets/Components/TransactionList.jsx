@@ -52,8 +52,10 @@ export default function TransactionList({ filter = 'all', onDelete }) {
   const [deleting, setDeleting] = useState(null);
   const [editingTx, setEditingTx] = useState(null);
 
+  const authHeaders = { Authorization: `Bearer ${localStorage.getItem('ff_token')}` };
+
   useEffect(() => {
-    fetch('/api/transactions')
+    fetch('/api/transactions', { headers: authHeaders })
       .then(r => r.json())
       .then(data => { setTxs(Array.isArray(data) ? data : []); setLoading(false); })
       .catch(() => setLoading(false));
@@ -62,7 +64,7 @@ export default function TransactionList({ filter = 'all', onDelete }) {
   async function handleDelete(id) {
     setDeleting(id);
     try {
-      await fetch(`/api/transactions/${id}`, { method: 'DELETE' });
+      await fetch(`/api/transactions/${id}`, { method: 'DELETE', headers: authHeaders });
       setTxs(prev => prev.filter(t => t.id !== id));
       onDelete?.();
     } finally {
@@ -72,7 +74,7 @@ export default function TransactionList({ filter = 'all', onDelete }) {
 
   function handleEditSuccess() {
     setEditingTx(null);
-    fetch('/api/transactions')
+    fetch('/api/transactions', { headers: authHeaders })
       .then(r => r.json())
       .then(data => setTxs(Array.isArray(data) ? data : []))
       .catch(() => {});
