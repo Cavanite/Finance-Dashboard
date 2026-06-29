@@ -26,6 +26,78 @@ function isAdmin(username) {
     return username === (process.env.AUTH_USER || 'admin');
 }
 
+// Recurring Expense Generator Function
+async function processRecurringExpenses() {
+    try {
+        const result = await pool.query('SELECT * FROM recurring_expenses WHERE is_active = true');
+        const recurringExpenses = result.rows;
+        const today = new Date().toISOString().split('T')[0];
+
+        for (const recurring of recurringExpenses) {
+            // Check if expense has ended
+            if (recurring.end_date && recurring.end_date < today) {
+                continue;
+            }
+
+            // Check if start date hasn't arrived yet
+            if (recurring.start_date > today) {
+                continue;
+            }
+
+            let shouldGenerate = false;
+            const lastGenerated = recurring.last_generated ? new Date(recurring.last_generated) : null;
+            const todayDate = new Date(today);
+
+            if (!lastGenerated) {
+                // Never generated before, create one for start date if today >= start_date
+                shouldGenerate = true;
+            } else {
+                const daysDiff = Math.floor((todayDate - lastGenerated) / (1000 * 60 * 60 * 24));
+
+                switch (recurring.frequency) {
+                    case 'daily':
+                        shouldGenerate = daysDiff >= 1;
+                        break;
+                    case 'weekly':
+                        shouldGenerate = daysDiff >= 7;
+                        break;
+                    case 'monthly':
+                        shouldGenerate = todayDate.getMonth() !== lastGenerated.getMonth() || 
+                                       todayDate.getFullYear() !== lastGenerated.getFullYear();
+                        break;
+                    case 'yearly':
+                        shouldGenerate = todayDate.getFullYear() !== lastGenerated.getFullYear();
+                        break;
+                }
+            }
+
+            if (shouldGenerate) {
+                // Create transaction
+                await pool.query(
+                    'INSERT INTO transactions (amount, category, description, date, type) VALUES ($1, $2, $3, $4, $5)',
+                    [recurring.amount, recurring.category, recurring.description, today, 'expense']
+                );
+
+                // Update last_generated timestamp
+                await pool.query(
+                    'UPDATE recurring_expenses SET last_generated = $1 WHERE id = $2',
+                    [today, recurring.id]
+                );
+
+                console.log(`Generated recurring expense: ${recurring.description} (${recurring.category})`);
+            }
+        }
+    } catch (err) {
+        console.error('Error processing recurring expenses:', err.message);
+    }
+}
+
+// Run recurring expense processor every hour
+setInterval(processRecurringExpenses, 60 * 60 * 1000);
+
+// Also run on startup
+processRecurringExpenses();
+
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
     
@@ -93,6 +165,7 @@ app.use('/api', (req, res, next) => {
            start_date DATE DEFAULT CURRENT_DATE,
            end_date DATE,
            last_generated DATE,
+           is_active BOOLEAN DEFAULT true,
            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     `);
@@ -362,6 +435,82 @@ app.post('/api/recurring-expenses/:id/generate', async (req, res) => {
         await pool.query('UPDATE recurring_expenses SET last_generated = $1 WHERE id = $2', [today, id]);
         
         res.status(201).json(txResult.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Payday Calculation Endpoint
+app.get('/api/payday', async (req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT * FROM transactions WHERE type = $1 ORDER BY date DESC LIMIT 12',
+            ['income']
+        );
+
+        const incomes = result.rows;
+        if (incomes.length === 0) {
+            return res.json({ nextPayday: null, frequency: null, daysUntil: null });
+        }
+
+        // Calculate average days between income transactions
+        let daysBetweenIncomes = [];
+        for (let i = 0; i < incomes.length - 1; i++) {
+            const diff = Math.floor((new Date(incomes[i].date) - new Date(incomes[i + 1].date)) / (1000 * 60 * 60 * 24));
+            if (diff > 0) {
+                daysBetweenIncomes.push(diff);
+            }
+        }
+
+        if (daysBetweenIncomes.length === 0) {
+            return res.json({ nextPayday: null, frequency: null, daysUntil: null });
+        }
+
+        // Calculate average cycle
+        const avgCycle = Math.round(daysBetweenIncomes.reduce((a, b) => a + b, 0) / daysBetweenIncomes.length);
+
+        // Determine frequency
+        let frequency = 'unknown';
+        if (avgCycle >= 27 && avgCycle <= 31) frequency = 'monthly';
+        else if (avgCycle >= 13 && avgCycle <= 15) frequency = 'bi-weekly';
+        else if (avgCycle >= 6 && avgCycle <= 8) frequency = 'weekly';
+        else if (avgCycle === 1) frequency = 'daily';
+
+        // Calculate next payday
+        const lastPayday = new Date(incomes[0].date);
+        const nextPayday = new Date(lastPayday);
+        nextPayday.setDate(nextPayday.getDate() + avgCycle);
+
+        // Days until next payday
+        const today = new Date();
+        const daysUntil = Math.ceil((nextPayday - today) / (1000 * 60 * 60 * 24));
+
+        res.json({
+            lastPayday: incomes[0].date,
+            nextPayday: nextPayday.toISOString().split('T')[0],
+            frequency,
+            avgCycle,
+            daysUntil: Math.max(0, daysUntil),
+            totalIncome: incomes.reduce((sum, tx) => sum + Number(tx.amount), 0),
+            recentIncomes: incomes.slice(0, 6),
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Recurring Expenses Toggle
+app.patch('/api/recurring-expenses/:id/toggle', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const result = await pool.query(
+            'UPDATE recurring_expenses SET is_active = NOT is_active WHERE id = $1 RETURNING *',
+            [id]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Recurring expense not found' });
+        }
+        res.json(result.rows[0]);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

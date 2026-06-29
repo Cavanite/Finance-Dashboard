@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import ExpenseChart from './ExpenseChart';
+import PaydayWidget from './PaydayWidget';
 
 const fmt = (v) =>
   new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(Number(v) || 0);
@@ -150,6 +151,11 @@ export default function Dashboard() {
         <StatCard type="income"  value={monthlyIncome}  delay={0} />
         <StatCard type="expense" value={monthlyExpense} delay={80} />
         <StatCard type="savings" value={savings} delay={160} />
+      </div>
+
+      {/* Payday Widget */}
+      <div className="mb-6">
+        <PaydayWidget />
       </div>
 
       {/* Bottom row */}

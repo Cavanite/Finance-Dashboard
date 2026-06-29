@@ -211,6 +211,23 @@ export default function RecurringExpensesPage({ onMutate }) {
     }
   }
 
+  async function handleToggle(id, currentStatus) {
+    try {
+      const res = await fetch(`/api/recurring-expenses/${id}/toggle`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('ff_token')}` },
+      });
+      if (res.ok) {
+        fetchExpenses();
+      } else {
+        alert('Error toggling recurring expense');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error toggling recurring expense');
+    }
+  }
+
   if (loading) return <Loader />;
 
   return (
@@ -265,9 +282,17 @@ export default function RecurringExpensesPage({ onMutate }) {
                 <span className="font-mono font-bold text-[14px] text-fg1 whitespace-nowrap">{fmt(expense.amount)}</span>
                 <div className="flex gap-2">
                   <button
+                    onClick={() => handleToggle(expense.id, expense.is_active)}
+                    className="px-3 py-2 rounded-lg font-medium text-[12px] text-white transition-all duration-150 hover:-translate-y-px active:translate-y-0"
+                    style={{ background: expense.is_active ? '#05d896' : '#888' }}
+                    title={expense.is_active ? 'Deactivate' : 'Activate'}
+                  >
+                    {expense.is_active ? 'Active' : 'Inactive'}
+                  </button>
+                  <button
                     onClick={() => handleGenerate(expense.id)}
                     className="px-3 py-2 rounded-lg font-medium text-[12px] text-white transition-all duration-150 hover:-translate-y-px active:translate-y-0"
-                    style={{ background: '#05d896' }}
+                    style={{ background: '#5e60f0' }}
                     title="Generate transaction now"
                   >
                     Generate
