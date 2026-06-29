@@ -86,8 +86,8 @@ async function processRecurringExpenses() {
             if (shouldGenerate) {
                 // Create transaction
                 await pool.query(
-                    'INSERT INTO transactions (amount, category, description, date, type) VALUES ($1, $2, $3, $4, $5)',
-                    [recurring.amount, recurring.category, recurring.description, today, 'expense']
+                    'INSERT INTO transactions (amount, category, description, date, type, owner_username) VALUES ($1, $2, $3, $4, $5, $6)',
+                    [recurring.amount, recurring.category, recurring.description, today, 'expense', recurring.owner_username]
                 );
 
                 // Update last_generated timestamp
@@ -156,16 +156,20 @@ app.use('/api', async (req, res, next) => {
         return res.status(401).json({ error: 'Unauthorized' });
     }
     if (token === authToken()) {
+        req.authUser = process.env.AUTH_USER || 'admin';
+        req.isAdmin = true;
         return next();
     }
     try {
         const usersResult = await pool.query('SELECT username FROM users WHERE is_active = true');
         const secret = process.env.AUTH_PASSWORD || 'secret';
-        const isValidUserToken = usersResult.rows.some(({ username }) => {
+        const matchedUser = usersResult.rows.find(({ username }) => {
             const expectedToken = crypto.createHmac('sha256', secret).update(username).digest('hex');
             return expectedToken === token;
         });
-        if (isValidUserToken) {
+        if (matchedUser) {
+            req.authUser = matchedUser.username;
+            req.isAdmin = false;
             return next();
         }
         return res.status(401).json({ error: 'Unauthorized' });
@@ -176,6 +180,7 @@ app.use('/api', async (req, res, next) => {
 
 (async () => {
     try {
+        const adminUser = process.env.AUTH_USER || 'admin';
         await pool.query(`
             CREATE TABLE IF NOT EXISTS transactions (
             id SERIAL PRIMARY KEY,
@@ -183,7 +188,8 @@ app.use('/api', async (req, res, next) => {
             category VARCHAR(50),
             description TEXT,
             date DATE DEFAULT CURRENT_DATE,
-            type VARCHAR(10) CHECK (type IN ('income','expense','savings')) NOT NULL
+            type VARCHAR(10) CHECK (type IN ('income','expense','savings')) NOT NULL,
+            owner_username VARCHAR(50)
         );
     `);
         await pool.query(`
@@ -199,6 +205,7 @@ app.use('/api', async (req, res, next) => {
            is_active BOOLEAN DEFAULT true,
            day_of_month INTEGER,
            day_of_week VARCHAR(10),
+           owner_username VARCHAR(50),
            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     `);
@@ -207,8 +214,12 @@ app.use('/api', async (req, res, next) => {
         await pool.query(`
             ALTER TABLE recurring_expenses
             ADD COLUMN IF NOT EXISTS day_of_month INTEGER,
-            ADD COLUMN IF NOT EXISTS day_of_week VARCHAR(10)
+            ADD COLUMN IF NOT EXISTS day_of_week VARCHAR(10),
+            ADD COLUMN IF NOT EXISTS owner_username VARCHAR(50)
         `);
+        await pool.query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS owner_username VARCHAR(50)`);
+        await pool.query('UPDATE transactions SET owner_username = $1 WHERE owner_username IS NULL', [adminUser]);
+        await pool.query('UPDATE recurring_expenses SET owner_username = $1 WHERE owner_username IS NULL', [adminUser]);
         await pool.query(`
            CREATE TABLE IF NOT EXISTS users (
            id SERIAL PRIMARY KEY,
@@ -240,9 +251,10 @@ app.get('/api/db-health', async (req, res) => {
 
 app.get('/api/summary', async (req, res) => {
     try {
-        const totalIncomeResult = await pool.query('SELECT SUM(amount) AS total_income FROM transactions WHERE type = $1', ['income']);
-        const totalExpensesResult = await pool.query('SELECT SUM(amount) AS total_expenses FROM transactions WHERE type = $1', ['expense']);
-        const totalSavingsResult = await pool.query('SELECT SUM(amount) AS total_savings FROM transactions WHERE type = $1', ['savings']);
+        const owner = req.authUser;
+        const totalIncomeResult = await pool.query('SELECT SUM(amount) AS total_income FROM transactions WHERE type = $1 AND owner_username = $2', ['income', owner]);
+        const totalExpensesResult = await pool.query('SELECT SUM(amount) AS total_expenses FROM transactions WHERE type = $1 AND owner_username = $2', ['expense', owner]);
+        const totalSavingsResult = await pool.query('SELECT SUM(amount) AS total_savings FROM transactions WHERE type = $1 AND owner_username = $2', ['savings', owner]);
         res.json({
             totalIncome: totalIncomeResult.rows[0].total_income,
             totalExpenses: totalExpensesResult.rows[0].total_expenses,
@@ -254,8 +266,8 @@ app.get('/api/summary', async (req, res) => {
 });
 
 app.get('/api/transactions', async (req, res) => {
-        try {
-        const result = await pool.query('SELECT * FROM transactions');
+    try {
+        const result = await pool.query('SELECT * FROM transactions WHERE owner_username = $1', [req.authUser]);
         res.json(result.rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -265,7 +277,7 @@ app.get('/api/transactions', async (req, res) => {
 app.get('/api/transactions/category/:category', async (req, res) => {
     const { category } = req.params;
     try {
-        const result = await pool.query('SELECT * FROM transactions WHERE category = $1', [category]);
+        const result = await pool.query('SELECT * FROM transactions WHERE category = $1 AND owner_username = $2', [category, req.authUser]);
         res.json(result.rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -275,7 +287,7 @@ app.get('/api/transactions/category/:category', async (req, res) => {
 app.get('/api/transactions/type/:type', async (req, res) => {
     const { type } = req.params;
     try {
-        const result = await pool.query('SELECT * FROM transactions WHERE type = $1', [type]);
+        const result = await pool.query('SELECT * FROM transactions WHERE type = $1 AND owner_username = $2', [type, req.authUser]);
         res.json(result.rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -286,7 +298,7 @@ app.get('/api/transactions/type/:type', async (req, res) => {
 app.get('/api/transactions/date/:date', async (req, res) => {
     const { date } = req.params;
     try {
-        const result = await pool.query('SELECT * FROM transactions WHERE date = $1', [date]);
+        const result = await pool.query('SELECT * FROM transactions WHERE date = $1 AND owner_username = $2', [date, req.authUser]);
         res.json(result.rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -295,7 +307,7 @@ app.get('/api/transactions/date/:date', async (req, res) => {
 
 app.get ('/api/savings', async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM transactions WHERE type = $1', ['savings']);
+        const result = await pool.query('SELECT * FROM transactions WHERE type = $1 AND owner_username = $2', ['savings', req.authUser]);
         res.json(result.rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -306,8 +318,8 @@ app.post('/api/savings', async (req, res) => {
     const { amount, category, description, date } = req.body;
     try {
         const result = await pool.query(
-            'INSERT INTO transactions (amount, category, description, date, type) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-            [amount, category, description, date, 'savings']
+            'INSERT INTO transactions (amount, category, description, date, type, owner_username) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+            [amount, category, description, date, 'savings', req.authUser]
         );
         res.status(201).json(result.rows[0]);
     } catch (err) {
@@ -317,7 +329,7 @@ app.post('/api/savings', async (req, res) => {
 
 app.get('/api/expenses', async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM transactions WHERE type = $1', ['expense']);
+        const result = await pool.query('SELECT * FROM transactions WHERE type = $1 AND owner_username = $2', ['expense', req.authUser]);
         res.json(result.rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -326,7 +338,7 @@ app.get('/api/expenses', async (req, res) => {
 
 app.get('/api/expenses/total', async (req, res) => {
     try {
-        const result = await pool.query('SELECT SUM(amount) AS total_expenses FROM transactions WHERE type = $1', ['expense']);
+        const result = await pool.query('SELECT SUM(amount) AS total_expenses FROM transactions WHERE type = $1 AND owner_username = $2', ['expense', req.authUser]);
         res.json(result.rows[0]);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -336,7 +348,7 @@ app.get('/api/expenses/total', async (req, res) => {
 app.get('/api/expenses/category/:category', async (req, res) => {
     const { category } = req.params;
     try {
-        const result = await pool.query('SELECT * FROM transactions WHERE type = $1 AND category = $2', ['expense', category]);
+        const result = await pool.query('SELECT * FROM transactions WHERE type = $1 AND category = $2 AND owner_username = $3', ['expense', category, req.authUser]);
         res.json(result.rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -345,7 +357,7 @@ app.get('/api/expenses/category/:category', async (req, res) => {
 
 app.get('/api/income', async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM transactions WHERE type = $1', ['income']);
+        const result = await pool.query('SELECT * FROM transactions WHERE type = $1 AND owner_username = $2', ['income', req.authUser]);
         res.json(result.rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -354,7 +366,7 @@ app.get('/api/income', async (req, res) => {
 
 app.get('/api/income/total', async (req, res) => {
     try {
-        const result = await pool.query('SELECT SUM(amount) AS total_income FROM transactions WHERE type = $1', ['income']);
+        const result = await pool.query('SELECT SUM(amount) AS total_income FROM transactions WHERE type = $1 AND owner_username = $2', ['income', req.authUser]);
         res.json(result.rows[0]);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -364,7 +376,7 @@ app.get('/api/income/total', async (req, res) => {
 app.get('/api/income/category/:category', async (req, res) => {
     const { category } = req.params;
     try {
-        const result = await pool.query('SELECT * FROM transactions WHERE type = $1 AND category = $2', ['income', category]);
+        const result = await pool.query('SELECT * FROM transactions WHERE type = $1 AND category = $2 AND owner_username = $3', ['income', category, req.authUser]);
         res.json(result.rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -375,8 +387,8 @@ app.post('/api/transactions', async (req, res) => {
     const { amount, category, description, date, type } = req.body;
     try {
         const result = await pool.query(
-            'INSERT INTO transactions (amount, category, description, date, type) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-            [amount, category, description, date, type]
+            'INSERT INTO transactions (amount, category, description, date, type, owner_username) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+            [amount, category, description, date, type, req.authUser]
         );
         res.status(201).json(result.rows[0]);
     } catch (err) {
@@ -389,8 +401,8 @@ app.put('/api/transactions/:id', async (req, res) => {
     const { amount, category, description, date, type } = req.body;
     try {
         const result = await pool.query(
-            'UPDATE transactions SET amount = $1, category = $2, description = $3, date = $4, type = $5 WHERE id = $6 RETURNING *',
-            [amount, category, description, date, type, id]
+            'UPDATE transactions SET amount = $1, category = $2, description = $3, date = $4, type = $5 WHERE id = $6 AND owner_username = $7 RETURNING *',
+            [amount, category, description, date, type, id, req.authUser]
         );
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Transaction not found' });
@@ -404,7 +416,7 @@ app.put('/api/transactions/:id', async (req, res) => {
 app.delete('/api/transactions/:id', async (req, res) => {
     const { id } = req.params;
     try {
-        const result = await pool.query('DELETE FROM transactions WHERE id = $1 RETURNING *', [id]);
+        const result = await pool.query('DELETE FROM transactions WHERE id = $1 AND owner_username = $2 RETURNING *', [id, req.authUser]);
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Transaction not found' });
         }
@@ -418,7 +430,7 @@ app.delete('/api/transactions/:id', async (req, res) => {
 
 app.get('/api/recurring-expenses', async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM recurring_expenses ORDER BY created_at DESC');
+        const result = await pool.query('SELECT * FROM recurring_expenses WHERE owner_username = $1 ORDER BY created_at DESC', [req.authUser]);
         res.json(result.rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -429,8 +441,8 @@ app.post('/api/recurring-expenses', async (req, res) => {
     const { amount, category, description, frequency, start_date, end_date } = req.body;
     try {
         const result = await pool.query(
-            'INSERT INTO recurring_expenses (amount, category, description, frequency, start_date, end_date) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-            [amount, category, description, frequency, start_date, end_date]
+            'INSERT INTO recurring_expenses (amount, category, description, frequency, start_date, end_date, owner_username) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+            [amount, category, description, frequency, start_date, end_date, req.authUser]
         );
         res.status(201).json(result.rows[0]);
     } catch (err) {
@@ -443,8 +455,8 @@ app.put('/api/recurring-expenses/:id', async (req, res) => {
     const { amount, category, description, frequency, start_date, end_date } = req.body;
     try {
         const result = await pool.query(
-            'UPDATE recurring_expenses SET amount = $1, category = $2, description = $3, frequency = $4, start_date = $5, end_date = $6 WHERE id = $7 RETURNING *',
-            [amount, category, description, frequency, start_date, end_date, id]
+            'UPDATE recurring_expenses SET amount = $1, category = $2, description = $3, frequency = $4, start_date = $5, end_date = $6 WHERE id = $7 AND owner_username = $8 RETURNING *',
+            [amount, category, description, frequency, start_date, end_date, id, req.authUser]
         );
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Recurring expense not found' });
@@ -458,7 +470,7 @@ app.put('/api/recurring-expenses/:id', async (req, res) => {
 app.delete('/api/recurring-expenses/:id', async (req, res) => {
     const { id } = req.params;
     try {
-        const result = await pool.query('DELETE FROM recurring_expenses WHERE id = $1 RETURNING *', [id]);
+        const result = await pool.query('DELETE FROM recurring_expenses WHERE id = $1 AND owner_username = $2 RETURNING *', [id, req.authUser]);
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Recurring expense not found' });
         }
@@ -472,7 +484,7 @@ app.delete('/api/recurring-expenses/:id', async (req, res) => {
 app.post('/api/recurring-expenses/:id/generate', async (req, res) => {
     const { id } = req.params;
     try {
-        const recurringResult = await pool.query('SELECT * FROM recurring_expenses WHERE id = $1', [id]);
+        const recurringResult = await pool.query('SELECT * FROM recurring_expenses WHERE id = $1 AND owner_username = $2', [id, req.authUser]);
         if (recurringResult.rows.length === 0) {
             return res.status(404).json({ error: 'Recurring expense not found' });
         }
@@ -485,8 +497,8 @@ app.post('/api/recurring-expenses/:id/generate', async (req, res) => {
         }
         
         const txResult = await pool.query(
-            'INSERT INTO transactions (amount, category, description, date, type) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-            [recurring.amount, recurring.category, recurring.description, today, 'expense']
+            'INSERT INTO transactions (amount, category, description, date, type, owner_username) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+            [recurring.amount, recurring.category, recurring.description, today, 'expense', req.authUser]
         );
         
         await pool.query('UPDATE recurring_expenses SET last_generated = $1 WHERE id = $2', [today, id]);
@@ -501,8 +513,8 @@ app.post('/api/recurring-expenses/:id/generate', async (req, res) => {
 app.get('/api/payday', async (req, res) => {
     try {
         const result = await pool.query(
-            'SELECT * FROM transactions WHERE type = $1 ORDER BY date DESC LIMIT 12',
-            ['income']
+            'SELECT * FROM transactions WHERE type = $1 AND owner_username = $2 ORDER BY date DESC LIMIT 12',
+            ['income', req.authUser]
         );
 
         const incomes = result.rows;
@@ -561,8 +573,8 @@ app.patch('/api/recurring-expenses/:id/toggle', async (req, res) => {
     const { id } = req.params;
     try {
         const result = await pool.query(
-            'UPDATE recurring_expenses SET is_active = NOT is_active WHERE id = $1 RETURNING *',
-            [id]
+            'UPDATE recurring_expenses SET is_active = NOT is_active WHERE id = $1 AND owner_username = $2 RETURNING *',
+            [id, req.authUser]
         );
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Recurring expense not found' });
@@ -577,9 +589,7 @@ app.patch('/api/recurring-expenses/:id/toggle', async (req, res) => {
 
 app.get('/api/admin/users', async (req, res) => {
     try {
-        const adminUser = process.env.AUTH_USER || 'admin';
-        // Check if requester is admin by verifying token matches admin token
-        if (req.headers.authorization !== `Bearer ${authToken()}`) {
+        if (!req.isAdmin) {
             return res.status(403).json({ error: 'Admin access required' });
         }
         
@@ -592,8 +602,7 @@ app.get('/api/admin/users', async (req, res) => {
 
 app.post('/api/admin/users', async (req, res) => {
     try {
-        const adminUser = process.env.AUTH_USER || 'admin';
-        if (req.headers.authorization !== `Bearer ${authToken()}`) {
+        if (!req.isAdmin) {
             return res.status(403).json({ error: 'Admin access required' });
         }
         
@@ -614,7 +623,7 @@ app.post('/api/admin/users', async (req, res) => {
         const passwordHash = hashPassword(password);
         const result = await pool.query(
             'INSERT INTO users (username, password_hash, created_by) VALUES ($1, $2, $3) RETURNING id, username, created_at, is_active',
-            [username, passwordHash, adminUser]
+            [username, passwordHash, req.authUser]
         );
         
         res.status(201).json(result.rows[0]);
@@ -628,7 +637,7 @@ app.post('/api/admin/users', async (req, res) => {
 
 app.delete('/api/admin/users/:id', async (req, res) => {
     try {
-        if (req.headers.authorization !== `Bearer ${authToken()}`) {
+        if (!req.isAdmin) {
             return res.status(403).json({ error: 'Admin access required' });
         }
         

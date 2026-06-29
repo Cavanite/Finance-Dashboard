@@ -88,6 +88,7 @@ export default function App() {
   function handleLogout() {
     localStorage.removeItem('ff_token');
     localStorage.removeItem('ff_isAdmin');
+    localStorage.removeItem('ff_username');
     setIsAuth(false);
     setIsAdmin(false);
   }

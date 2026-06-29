@@ -22,6 +22,7 @@ export default function LoginPage({ onLogin }) {
       if (!res.ok) { setError(data.error || 'Login failed.'); return; }
       localStorage.setItem('ff_token', data.token);
       localStorage.setItem('ff_isAdmin', data.isAdmin ? 'true' : 'false');
+      localStorage.setItem('ff_username', data.username);
       onLogin(data.isAdmin);
     } catch {
       setError('Could not reach the server.');

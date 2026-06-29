@@ -17,11 +17,13 @@ function ordinal(n) {
 }
 
 function getTemplates() {
-  try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]'); }
+  const key = `${LS_KEY}:${localStorage.getItem('ff_username') || 'default'}`;
+  try { return JSON.parse(localStorage.getItem(key) || '[]'); }
   catch { return []; }
 }
 function saveTemplates(tpls) {
-  localStorage.setItem(LS_KEY, JSON.stringify(tpls));
+  const key = `${LS_KEY}:${localStorage.getItem('ff_username') || 'default'}`;
+  localStorage.setItem(key, JSON.stringify(tpls));
 }
 
 // Returns 'posted' | 'due' | 'upcoming'
@@ -201,7 +203,7 @@ function RecurringSection({ onNewTransaction, onMutate }) {
 
       <div className="bg-panel border border-rim rounded-2xl overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-rim">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-6 py-4 border-b border-rim">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
                  style={{ background: 'rgba(94,96,240,0.12)', color: '#5e60f0' }}>
@@ -304,7 +306,7 @@ function RecurringSection({ onNewTransaction, onMutate }) {
               return (
                 <div
                   key={tpl.id}
-                  className="flex items-center gap-5 px-6 py-4 border-b border-rim last:border-0"
+                  className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5 px-4 sm:px-6 py-4 border-b border-rim last:border-0"
                   style={{ transition: 'background 0.15s' }}
                   onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.015)'}
                   onMouseLeave={e => e.currentTarget.style.background = ''}
@@ -316,7 +318,7 @@ function RecurringSection({ onNewTransaction, onMutate }) {
                   }} />
 
                   {/* Label + meta */}
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 w-full">
                     <div className="flex items-center gap-2">
                       <span className="text-[13.5px] font-semibold text-fg1">{tpl.label}</span>
                       <span className="text-fg3 text-[11px]">·</span>
@@ -330,12 +332,12 @@ function RecurringSection({ onNewTransaction, onMutate }) {
                   </div>
 
                   {/* Amount */}
-                  <p className="font-display text-[17px] font-extrabold tracking-tight flex-shrink-0" style={{ color: '#05d896' }}>
+                  <p className="font-display text-[17px] font-extrabold tracking-tight flex-shrink-0 sm:self-auto self-start" style={{ color: '#05d896' }}>
                     {fmt(tpl.amount)}
                   </p>
 
                   {/* Status badge / action */}
-                  <div className="flex-shrink-0">
+                  <div className="flex-shrink-0 sm:self-auto self-start">
                     {(status === 'posted' || didPost) && (
                       <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11.5px] font-semibold"
                             style={{ background: 'rgba(5,216,150,0.1)', color: '#05d896' }}>
@@ -366,7 +368,7 @@ function RecurringSection({ onNewTransaction, onMutate }) {
                   {/* Delete template */}
                   <button
                     onClick={() => removeTemplate(tpl.id)}
-                    className="w-7 h-7 rounded-md border border-rim2 flex items-center justify-center text-fg3 transition-all duration-150 cursor-pointer flex-shrink-0"
+                    className="w-8 h-8 sm:w-7 sm:h-7 rounded-md border border-rim2 flex items-center justify-center text-fg3 transition-all duration-150 cursor-pointer flex-shrink-0 sm:self-auto self-end"
                     style={{ background: 'transparent' }}
                     onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,61,107,0.1)'; e.currentTarget.style.color = '#ff3d6b'; e.currentTarget.style.borderColor = '#ff3d6b'; }}
                     onMouseLeave={e => { e.currentTarget.style.background = ''; e.currentTarget.style.color = ''; e.currentTarget.style.borderColor = ''; }}
@@ -462,7 +464,6 @@ export default function IncomePage({ onMutate }) {
     onMutate?.();
   }
 
-  const total     = transactions.reduce((s, t) => s + Number(t.amount), 0);
   const thisMonth = transactions.filter(t => {
     const d = new Date(t.date), n = new Date();
     return d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear();
@@ -480,13 +481,9 @@ export default function IncomePage({ onMutate }) {
              style={{ background: 'rgba(5,216,150,0.08)', filter: 'blur(32px)' }} />
         <div className="relative flex items-center justify-between">
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.1em] mb-2" style={{ color: '#05d896' }}>Total Income</p>
-            <p className="font-display text-[42px] font-extrabold tracking-tight leading-none" style={{ color: '#05d896' }}>{fmt(total)}</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.1em] mb-2" style={{ color: '#05d896' }}>Income</p>
+            <p className="font-display text-[42px] font-extrabold tracking-tight leading-none" style={{ color: '#05d896' }}>{fmt(thisMonth)}</p>
             <p className="text-[12px] text-fg3 mt-2">{transactions.length} {transactions.length === 1 ? 'entry' : 'entries'} recorded</p>
-          </div>
-          <div className="text-right">
-            <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-fg3 mb-1">This month</p>
-            <p className="font-display text-[22px] font-bold tracking-tight" style={{ color: '#05d896' }}>{fmt(thisMonth)}</p>
           </div>
         </div>
       </div>

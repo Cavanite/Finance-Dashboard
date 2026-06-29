@@ -18,10 +18,14 @@ function daysLeft(deadline) {
 }
 
 function getGoals() {
-    try { return JSON.parse(localStorage.getItem(LS_GOALS) || '[]'); }
+    const key = `${LS_GOALS}:${localStorage.getItem('ff_username') || 'default'}`;
+    try { return JSON.parse(localStorage.getItem(key) || '[]'); }
     catch { return []; }
 }
-function saveGoals(g) { localStorage.setItem(LS_GOALS, JSON.stringify(g)); }
+function saveGoals(g) {
+  const key = `${LS_GOALS}:${localStorage.getItem('ff_username') || 'default'}`;
+  localStorage.setItem(key, JSON.stringify(g));
+}
 
 const GOAL_COLORS = [
     { value: '#2fb8f0', label: 'Sky'    },
@@ -51,8 +55,14 @@ function SpinDot()    { return <span className="w-3.5 h-3.5 rounded-full border-
 /* ─────────────────────────────────────────────── */
 const LS_RECURRING = 'ff_recurring_savings';
 
-function getRecurring()   { try { return JSON.parse(localStorage.getItem(LS_RECURRING) || '[]'); } catch { return []; } }
-function saveRecurring(r) { localStorage.setItem(LS_RECURRING, JSON.stringify(r)); }
+function getRecurring() {
+  const key = `${LS_RECURRING}:${localStorage.getItem('ff_username') || 'default'}`;
+  try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch { return []; }
+}
+function saveRecurring(r) {
+  const key = `${LS_RECURRING}:${localStorage.getItem('ff_username') || 'default'}`;
+  localStorage.setItem(key, JSON.stringify(r));
+}
 
 function recurringStatus(tpl) {
   const now = new Date();
