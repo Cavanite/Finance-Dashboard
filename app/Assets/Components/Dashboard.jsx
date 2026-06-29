@@ -29,8 +29,8 @@ function Loader() {
 
 function StatCard({ type, value, delay }) {
   const cfg = TYPE_CFG[type];
-  const labels  = { income: 'Total Income',    expense: 'Total Expenses', savings: 'Total Savings' };
-  const subtext = { income: 'All-time earnings', expense: 'All-time spending', savings: 'All-time saved' };
+  const labels  = { income: 'Monthly Income',    expense: 'Monthly Expenses', savings: 'Total Savings' };
+  const subtext = { income: 'This month earnings', expense: 'This month spending', savings: 'All-time saved' };
   const [hovered, setHovered] = useState(false);
 
   const Icon = {
@@ -111,18 +111,35 @@ export default function Dashboard() {
 
   if (loading) return <Loader />;
 
-  const income  = Number(summary?.totalIncome)   || 0;
-  const expense = Number(summary?.totalExpenses)  || 0;
-  const savings = Number(summary?.totalSavings)   || 0;
-  const maxVal  = Math.max(income, expense, savings, 1);
+  // Calculate monthly totals
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+  
+  const monthlyTransactions = transactions.filter(tx => {
+    const txDate = new Date(tx.date);
+    return txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
+  });
+
+  const monthlyIncome = monthlyTransactions
+    .filter(tx => tx.type === 'income')
+    .reduce((sum, tx) => sum + Number(tx.amount), 0);
+
+  const monthlyExpense = monthlyTransactions
+    .filter(tx => tx.type === 'expense')
+    .reduce((sum, tx) => sum + Number(tx.amount), 0);
+
+  // Keep all-time savings
+  const savings = Number(summary?.totalSavings) || 0;
+  const maxVal = Math.max(monthlyIncome, monthlyExpense, savings, 1);
 
   const recent = [...transactions]
     .sort((a, b) => new Date(b.date) - new Date(a.date))
     .slice(0, 5);
 
   const bars = [
-    { key: 'income',  val: income,  color: '#05d896' },
-    { key: 'expense', val: expense, color: '#ff3d6b' },
+    { key: 'income',  val: monthlyIncome,  color: '#05d896' },
+    { key: 'expense', val: monthlyExpense, color: '#ff3d6b' },
     { key: 'savings', val: savings, color: '#2fb8f0' },
   ];
 
@@ -130,8 +147,8 @@ export default function Dashboard() {
     <div>
       {/* Stat Cards */}
       <div className="grid grid-cols-3 gap-5 mb-6">
-        <StatCard type="income"  value={income}  delay={0} />
-        <StatCard type="expense" value={expense} delay={80} />
+        <StatCard type="income"  value={monthlyIncome}  delay={0} />
+        <StatCard type="expense" value={monthlyExpense} delay={80} />
         <StatCard type="savings" value={savings} delay={160} />
       </div>
 

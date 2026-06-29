@@ -4,6 +4,7 @@ import TransactionList from '../Assets/Components/TransactionList';
 import IncomePage from '../Assets/Components/IncomePage';
 import SavingsPage from '../Assets/Components/SavingsPage';
 import RecurringExpensesPage from '../Assets/Components/RecurringExpensesPage';
+import AdminPage from '../Assets/Components/AdminPage';
 import AddTransactionModal from '../Assets/Components/AddTransactionModal';
 import LoginPage from '../Assets/Components/LoginPage';
 import '../styles.css';
@@ -72,6 +73,7 @@ const PAGE_TITLE = {
 
 export default function App() {
   const [isAuth,    setIsAuth]    = useState(() => !!localStorage.getItem('ff_token'));
+  const [isAdmin,   setIsAdmin]   = useState(() => localStorage.getItem('ff_isAdmin') === 'true');
   const [view,      setView]      = useState('dashboard');
   const [showModal, setShowModal] = useState(false);
   const [tick,      setTick]      = useState(0);
@@ -80,15 +82,18 @@ export default function App() {
 
   function handleLogout() {
     localStorage.removeItem('ff_token');
+    localStorage.removeItem('ff_isAdmin');
     setIsAuth(false);
+    setIsAdmin(false);
   }
 
-  if (!isAuth) return <LoginPage onLogin={() => setIsAuth(true)} />;
+  if (!isAuth) return <LoginPage onLogin={(adminStatus) => { setIsAuth(true); setIsAdmin(adminStatus); }} />;
 
   function renderView() {
     if (view === 'dashboard') return <Dashboard key={tick} />;
     if (view === 'income')    return <IncomePage key={tick} onMutate={refresh} />;
     if (view === 'recurring') return <RecurringExpensesPage key={tick} onMutate={refresh} />;
+    if (view === 'admin')     return <AdminPage key={tick} onMutate={refresh} />;
     if (view === 'savings')   return <SavingsPage key={tick} onMutate={refresh} />;
     if (view === 'expenses')  return <TransactionList filter="expense" key={tick} onDelete={refresh} />;
     return                           <TransactionList filter="all"     key={tick} onDelete={refresh} />;
@@ -146,6 +151,28 @@ export default function App() {
               </button>
             );
           })}
+          
+          {/* Admin Button - Only for admin users */}
+          {isAdmin && (
+            <>
+              <p className="text-[10px] font-bold tracking-[0.12em] uppercase text-fg3 px-2.5 pb-2 pt-4 mt-4 border-t border-rim">Admin</p>
+              <button
+                onClick={() => setView('admin')}
+                className={[
+                  'w-full flex items-center gap-2.5 px-2.5 py-2.5 mb-0.5 rounded-md border text-[13.5px] font-medium text-left transition-colors duration-150 cursor-pointer',
+                  view === 'admin'
+                    ? 'text-accent border-accent/20'
+                    : 'text-fg2 border-transparent hover:text-fg1',
+                ].join(' ')}
+                style={{ background: view === 'admin' ? 'rgba(94,96,240,0.12)' : 'transparent' }}
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                </svg>
+                Admin Panel
+              </button>
+            </>
+          )}
         </nav>
 
         {/* Footer */}

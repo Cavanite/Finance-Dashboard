@@ -21,7 +21,8 @@ export default function LoginPage({ onLogin }) {
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Login failed.'); return; }
       localStorage.setItem('ff_token', data.token);
-      onLogin();
+      localStorage.setItem('ff_isAdmin', data.isAdmin ? 'true' : 'false');
+      onLogin(data.isAdmin);
     } catch {
       setError('Could not reach the server.');
     } finally {

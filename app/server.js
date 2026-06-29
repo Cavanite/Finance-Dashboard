@@ -15,12 +15,53 @@ function authToken() {
         .digest('hex');
 }
 
-app.post('/api/login', (req, res) => {
+function hashPassword(password) {
+    return crypto
+        .createHmac('sha256', process.env.AUTH_PASSWORD || 'secret')
+        .update(password)
+        .digest('hex');
+}
+
+function isAdmin(username) {
+    return username === (process.env.AUTH_USER || 'admin');
+}
+
+app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
-    if (username === process.env.AUTH_USER && password === process.env.AUTH_PASSWORD) {
-        return res.json({ token: authToken() });
+    
+    try {
+        // Check if it's the admin user
+        if (username === process.env.AUTH_USER && password === process.env.AUTH_PASSWORD) {
+            return res.json({ token: authToken(), username, isAdmin: true });
+        }
+        
+        // Check other users in database
+        const result = await pool.query(
+            'SELECT * FROM users WHERE username = $1 AND is_active = true',
+            [username]
+        );
+        
+        if (result.rows.length === 0) {
+            return res.status(401).json({ error: 'Invalid username or password' });
+        }
+        
+        const user = result.rows[0];
+        const expectedHash = hashPassword(password);
+        
+        if (user.password_hash !== expectedHash) {
+            return res.status(401).json({ error: 'Invalid username or password' });
+        }
+        
+        // Generate token for user
+        const token = crypto
+            .createHmac('sha256', process.env.AUTH_PASSWORD || 'secret')
+            .update(username)
+            .digest('hex');
+        
+        res.json({ token, username, isAdmin: false });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
-    res.status(401).json({ error: 'Invalid username or password' });
 });
 
 app.use('/api', (req, res, next) => {
@@ -53,6 +94,16 @@ app.use('/api', (req, res, next) => {
            end_date DATE,
            last_generated DATE,
            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    `);
+        await pool.query(`
+           CREATE TABLE IF NOT EXISTS users (
+           id SERIAL PRIMARY KEY,
+           username VARCHAR(50) UNIQUE NOT NULL,
+           password_hash VARCHAR(255) NOT NULL,
+           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+           created_by VARCHAR(50),
+           is_active BOOLEAN DEFAULT true
         );
     `);
         console.log('DB ready');
@@ -311,6 +362,78 @@ app.post('/api/recurring-expenses/:id/generate', async (req, res) => {
         await pool.query('UPDATE recurring_expenses SET last_generated = $1 WHERE id = $2', [today, id]);
         
         res.status(201).json(txResult.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Admin Endpoints
+
+app.get('/api/admin/users', async (req, res) => {
+    try {
+        const adminUser = process.env.AUTH_USER || 'admin';
+        // Check if requester is admin by verifying token matches admin token
+        if (req.headers.authorization !== `Bearer ${authToken()}`) {
+            return res.status(403).json({ error: 'Admin access required' });
+        }
+        
+        const result = await pool.query('SELECT id, username, created_at, created_by, is_active FROM users ORDER BY created_at DESC');
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/admin/users', async (req, res) => {
+    try {
+        const adminUser = process.env.AUTH_USER || 'admin';
+        if (req.headers.authorization !== `Bearer ${authToken()}`) {
+            return res.status(403).json({ error: 'Admin access required' });
+        }
+        
+        const { username, password } = req.body;
+        
+        if (!username || !password) {
+            return res.status(400).json({ error: 'Username and password required' });
+        }
+        
+        if (username.length < 3) {
+            return res.status(400).json({ error: 'Username must be at least 3 characters' });
+        }
+        
+        if (password.length < 6) {
+            return res.status(400).json({ error: 'Password must be at least 6 characters' });
+        }
+        
+        const passwordHash = hashPassword(password);
+        const result = await pool.query(
+            'INSERT INTO users (username, password_hash, created_by) VALUES ($1, $2, $3) RETURNING id, username, created_at, is_active',
+            [username, passwordHash, adminUser]
+        );
+        
+        res.status(201).json(result.rows[0]);
+    } catch (err) {
+        if (err.message.includes('duplicate')) {
+            return res.status(400).json({ error: 'Username already exists' });
+        }
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/admin/users/:id', async (req, res) => {
+    try {
+        if (req.headers.authorization !== `Bearer ${authToken()}`) {
+            return res.status(403).json({ error: 'Admin access required' });
+        }
+        
+        const { id } = req.params;
+        const result = await pool.query('UPDATE users SET is_active = false WHERE id = $1 RETURNING id, username', [id]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        res.json({ message: 'User deactivated', user: result.rows[0] });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
