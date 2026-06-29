@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import SavingsProjection from './SavingsProjection';
 
 /* ── helpers ──────────────────────────────────── */
 const LS_GOALS = 'ff_savings_goals';
@@ -635,6 +636,11 @@ export default function SavingsPage({ onMutate }) {
 
       {/* ── GOALS ───────────────────────────────── */}
       <GoalsSection onQuickAdd={handleQuickAdd} />
+
+      {/* ── SAVINGS PROJECTION ──────────────────── */}
+      <div className="mb-6">
+        <SavingsProjection />
+      </div>
 
       {/* ── ADD FORM + HISTORY ──────────────────── */}
       <div className="grid gap-6" style={{ gridTemplateColumns: '380px 1fr' }}>
