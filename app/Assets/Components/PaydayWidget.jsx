@@ -29,8 +29,23 @@ export default function PaydayWidget() {
     }
   }
 
-  if (loading || !paydata?.nextPayday) {
+  if (loading) {
     return null;
+  }
+
+  if (!paydata?.nextPayday) {
+    return (
+      <div className="bg-gradient-to-br from-panel to-panel border border-rim rounded-2xl p-6 overflow-hidden relative">
+        <div className="relative">
+          <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-fg3 mb-2">
+            📅 Next Payday
+          </p>
+          <p className="text-[12px] text-fg2">
+            Add at least 2 income transactions to calculate your payday frequency and see when your next payday is.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   const frequencyEmoji = {
