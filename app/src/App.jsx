@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Dashboard from '../Assets/Components/Dashboard';
 import TransactionList from '../Assets/Components/TransactionList';
 import IncomePage from '../Assets/Components/IncomePage';
@@ -77,8 +77,13 @@ export default function App() {
   const [view,      setView]      = useState('dashboard');
   const [showModal, setShowModal] = useState(false);
   const [tick,      setTick]      = useState(0);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const refresh = () => setTick(t => t + 1);
+
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [view]);
 
   function handleLogout() {
     localStorage.removeItem('ff_token');
@@ -105,9 +110,21 @@ export default function App() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-base font-sans text-fg1">
+      {mobileNavOpen && (
+        <button
+          className="fixed inset-0 z-30 bg-black/60 md:hidden"
+          onClick={() => setMobileNavOpen(false)}
+          aria-label="Close menu"
+        />
+      )}
 
       {/* ── SIDEBAR ──────────────────────────────── */}
-      <aside className="w-[236px] flex-shrink-0 flex flex-col bg-side border-r border-rim relative z-20">
+      <aside
+        className={[
+          'w-[236px] flex-shrink-0 flex flex-col bg-side border-r border-rim fixed inset-y-0 left-0 z-40 md:static md:translate-x-0 transition-transform duration-200',
+          mobileNavOpen ? 'translate-x-0' : '-translate-x-full',
+        ].join(' ')}
+      >
         <div
           className="absolute right-0 top-0 w-px h-full pointer-events-none"
           style={{ background: 'linear-gradient(to bottom, transparent, #5e60f0 45%, transparent)', opacity: 0.22 }}
@@ -186,17 +203,30 @@ export default function App() {
 
         {/* Topbar */}
         <header
-          className="flex items-center justify-between px-8 border-b border-rim flex-shrink-0"
+          className="flex items-center justify-between gap-2 px-4 md:px-8 border-b border-rim flex-shrink-0"
           style={{ height: 62, background: 'rgba(7,9,15,0.85)', backdropFilter: 'blur(12px)' }}
         >
-          <div>
-            <h1 className="font-display text-[18px] font-bold tracking-tight">{PAGE_TITLE[view]}</h1>
+          <div className="flex items-center gap-2 min-w-0">
+            <button
+              onClick={() => setMobileNavOpen(true)}
+              className="md:hidden w-9 h-9 rounded-md border border-rim flex items-center justify-center text-fg2"
+              aria-label="Open menu"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            </button>
+            <div className="min-w-0">
+            <h1 className="font-display text-[16px] md:text-[18px] font-bold tracking-tight truncate">{PAGE_TITLE[view]}</h1>
             <p className="text-[11px] text-fg3 mt-px">Personal finance overview</p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowModal(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-md font-semibold text-[13.5px] text-white transition-all duration-150 hover:-translate-y-px active:translate-y-0 cursor-pointer"
+              className="flex items-center gap-2 px-3 md:px-4 py-2 rounded-md font-semibold text-[12px] md:text-[13.5px] text-white transition-all duration-150 hover:-translate-y-px active:translate-y-0 cursor-pointer"
               style={{ background: '#5e60f0' }}
               onMouseEnter={e => { e.currentTarget.style.background = '#7173f5'; e.currentTarget.style.boxShadow = '0 6px 18px rgba(94,96,240,0.4)'; }}
               onMouseLeave={e => { e.currentTarget.style.background = '#5e60f0'; e.currentTarget.style.boxShadow = ''; }}
@@ -204,7 +234,7 @@ export default function App() {
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
               </svg>
-              Add Transaction
+              <span className="hidden sm:inline">Add Transaction</span>
             </button>
             <button
               onClick={handleLogout}
@@ -220,7 +250,7 @@ export default function App() {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto p-8">
+        <main className="flex-1 overflow-y-auto p-4 md:p-8">
           {renderView()}
         </main>
       </div>

@@ -151,7 +151,7 @@ function AddRecurringModal({ onClose, onSuccess }) {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-[12px] font-semibold text-fg2 uppercase tracking-wide mb-2">Start Date</label>
               <input
@@ -173,7 +173,7 @@ function AddRecurringModal({ onClose, onSuccess }) {
             </div>
           </div>
 
-          <div className="flex gap-3 pt-2">
+          <div className="flex flex-col sm:flex-row gap-3 pt-2">
             <button
               type="submit"
               className="flex-1 px-4 py-2.5 rounded-lg font-semibold text-[13px] text-white transition-all duration-150 hover:-translate-y-px active:translate-y-0"
@@ -277,7 +277,7 @@ export default function RecurringExpensesPage({ onMutate }) {
   return (
     <div>
       {/* Header with button */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <div>
           <h1 className="font-display text-[24px] font-bold tracking-tight">Recurring Expenses</h1>
           <p className="text-[13px] text-fg3 mt-1">Set up expenses that repeat automatically</p>
@@ -306,7 +306,7 @@ export default function RecurringExpensesPage({ onMutate }) {
       ) : (
         <div className="space-y-3">
           {expenses.map((expense) => (
-            <div key={expense.id} className="bg-panel border border-rim rounded-xl p-4 flex items-center justify-between transition-all duration-150 hover:border-rim2">
+            <div key={expense.id} className="bg-panel border border-rim rounded-xl p-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 transition-all duration-150 hover:border-rim2">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-1">
                   <h3 className="font-semibold text-[14px] text-fg1">{expense.description || expense.category}</h3>
@@ -314,7 +314,7 @@ export default function RecurringExpensesPage({ onMutate }) {
                     {expense.frequency}
                   </span>
                 </div>
-                <div className="flex items-center gap-4 text-[12px] text-fg3">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-[12px] text-fg3">
                   <span>Category: <strong className="text-fg2">{expense.category}</strong></span>
                   <span>From: <strong className="text-fg2">{fmtDate(expense.start_date)}</strong></span>
                   {expense.end_date && <span>Until: <strong className="text-fg2">{fmtDate(expense.end_date)}</strong></span>}
@@ -322,9 +322,9 @@ export default function RecurringExpensesPage({ onMutate }) {
                 </div>
               </div>
               
-              <div className="flex items-center gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 w-full lg:w-auto">
                 <span className="font-mono font-bold text-[14px] text-fg1 whitespace-nowrap">{fmt(expense.amount)}</span>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <button
                     onClick={() => handleToggle(expense.id, expense.is_active)}
                     className="px-3 py-2 rounded-lg font-medium text-[12px] text-white transition-all duration-150 hover:-translate-y-px active:translate-y-0"

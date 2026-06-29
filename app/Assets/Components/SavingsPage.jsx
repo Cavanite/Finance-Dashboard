@@ -374,7 +374,7 @@ function GoalForm({ initial, onSave, onCancel }) {
       <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-fg3 mb-3">
         {initial ? 'Edit goal' : 'New savings goal'}
       </p>
-      <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="flex flex-col gap-1.5">
           <label className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-fg2">Goal name</label>
           <input type="text" value={f.name} onChange={setFld('name')}
@@ -643,7 +643,7 @@ export default function SavingsPage({ onMutate }) {
       </div>
 
       {/* ── ADD FORM + HISTORY ──────────────────── */}
-      <div className="grid gap-6" style={{ gridTemplateColumns: '380px 1fr' }}>
+      <div className="grid grid-cols-1 xl:grid-cols-[380px_minmax(0,1fr)] gap-6">
 
         {/* Form */}
         <div ref={formRef}>
@@ -739,7 +739,7 @@ export default function SavingsPage({ onMutate }) {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full min-w-[680px]">
                   <thead>
                     <tr style={{ background: 'rgba(255,255,255,0.01)' }}>
                       {['Date', 'Description', 'Category', 'Amount', ''].map((h, i) => (

@@ -86,7 +86,7 @@ export default function TransactionList({ filter = 'all', onDelete }) {
   return (
     <div className="anim-fade-up">
       {/* Page header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <div>
           <h2 className="font-display text-[17px] font-bold tracking-tight">{titleMap[active]}</h2>
           <p className="text-[12px] text-fg3 mt-0.5">
@@ -96,7 +96,7 @@ export default function TransactionList({ filter = 'all', onDelete }) {
 
         {/* Filter tabs */}
         <div
-          className="flex gap-1 p-1 rounded-lg border border-rim"
+          className="flex flex-wrap gap-1 p-1 rounded-lg border border-rim"
           style={{ background: '#060812' }}
         >
           {FILTERS.map(({ id, label }) => (
@@ -133,7 +133,7 @@ export default function TransactionList({ filter = 'all', onDelete }) {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[720px]">
               <thead>
                 <tr style={{ background: 'rgba(255,255,255,0.01)' }}>
                   {['Date', 'Description', 'Category', 'Amount', 'Type', ''].map((h, i) => (

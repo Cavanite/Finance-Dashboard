@@ -110,7 +110,7 @@ export default function AdminPage() {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <div>
           <h1 className="font-display text-[24px] font-bold tracking-tight">Admin Panel</h1>
           <p className="text-[13px] text-fg3 mt-1">Manage users and system settings</p>
@@ -177,7 +177,7 @@ export default function AdminPage() {
               />
             </div>
 
-            <div className="flex gap-3 pt-2">
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
               <button
                 type="submit"
                 disabled={submitting}
@@ -214,7 +214,8 @@ export default function AdminPage() {
             <p className="text-[12px] text-fg3">Create your first user to get started</p>
           </div>
         ) : (
-          <table className="w-full">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px]">
             <thead>
               <tr style={{ background: 'rgba(255,255,255,0.01)' }}>
                 <th className="text-left px-6 py-3 text-[11px] font-bold uppercase tracking-wider text-fg2 border-b border-rim">Username</th>
@@ -254,7 +255,8 @@ export default function AdminPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+            </table>
+          </div>
         )}
       </div>
     </div>

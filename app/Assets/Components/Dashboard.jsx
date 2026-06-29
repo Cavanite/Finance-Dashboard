@@ -147,7 +147,7 @@ export default function Dashboard() {
   return (
     <div>
       {/* Stat Cards */}
-      <div className="grid grid-cols-3 gap-5 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5 mb-6">
         <StatCard type="income"  value={monthlyIncome}  delay={0} />
         <StatCard type="expense" value={monthlyExpense} delay={80} />
         <StatCard type="savings" value={savings} delay={160} />
@@ -159,7 +159,7 @@ export default function Dashboard() {
       </div>
 
       {/* Bottom row */}
-      <div className="grid gap-5" style={{ gridTemplateColumns: '1fr 1fr' }}>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
         {/* Expense Distribution Chart */}
         <ExpenseChart transactions={transactions} />
@@ -215,7 +215,8 @@ export default function Dashboard() {
             <p className="text-[11.5px] text-white">Add your first transaction above</p>
           </div>
         ) : (
-          <table className="w-full">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px]">
             <thead>
               <tr style={{ background: 'rgba(255,255,255,0.01)' }}>
                 {['Date', 'Description', 'Category', 'Amount', 'Type'].map(h => (
@@ -253,6 +254,7 @@ export default function Dashboard() {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>
