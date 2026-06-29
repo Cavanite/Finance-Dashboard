@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import ExpenseChart from './ExpenseChart';
 
 const fmt = (v) =>
   new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(Number(v) || 0);
@@ -135,7 +136,10 @@ export default function Dashboard() {
       </div>
 
       {/* Bottom row */}
-      <div className="grid gap-5" style={{ gridTemplateColumns: '320px 1fr' }}>
+      <div className="grid gap-5" style={{ gridTemplateColumns: '1fr 1fr' }}>
+
+        {/* Expense Distribution Chart */}
+        <ExpenseChart transactions={transactions} />
 
         {/* Bar Chart */}
         <div className="bg-panel border border-rim rounded-2xl anim-fade-up" style={{ animationDelay: '200ms' }}>
@@ -168,65 +172,65 @@ export default function Dashboard() {
             ))}
           </div>
         </div>
+      </div>
 
-        {/* Recent Transactions */}
-        <div className="bg-panel border border-rim rounded-2xl overflow-hidden anim-fade-up" style={{ animationDelay: '260ms' }}>
-          <div className="px-6 pt-5 pb-3 border-b border-rim">
-            <h2 className="font-display text-[14.5px] font-bold tracking-tight">Recent Transactions</h2>
-            <p className="text-[11.5px] text-white mt-0.5">Last 5 entries</p>
-          </div>
-
-          {recent.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-14 gap-2 text-white">
-              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="opacity-25 mb-2">
-                <rect x="2" y="3" width="20" height="14" rx="2"/>
-                <line x1="8" y1="21" x2="16" y2="21"/>
-                <line x1="12" y1="17" x2="12" y2="21"/>
-              </svg>
-              <p className="text-[13px] text-white font-medium">No transactions yet</p>
-              <p className="text-[11.5px] text-white">Add your first transaction above</p>
-            </div>
-          ) : (
-            <table className="w-full">
-              <thead>
-                <tr style={{ background: 'rgba(255,255,255,0.01)' }}>
-                  {['Date', 'Description', 'Category', 'Amount', 'Type'].map(h => (
-                    <th key={h} className="text-left px-5 py-2.5 text-[10px] font-bold uppercase tracking-[0.1em] text-white border-b border-rim">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {recent.map((tx) => {
-                  const cfg = TYPE_CFG[tx.type] || TYPE_CFG.income;
-                  return (
-                    <tr key={tx.id} className="border-b border-rim last:border-0" style={{ transition: 'background 0.15s' }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.018)'}
-                        onMouseLeave={e => e.currentTarget.style.background = ''}>
-                      <td className="px-5 py-3.5 font-mono text-[11.5px] text-fg3 whitespace-nowrap">{fmtDate(tx.date)}</td>
-                      <td className="px-5 py-3.5 text-[13px] font-medium text-fg1 max-w-[140px]">
-                        <span className="block truncate">{tx.description || '—'}</span>
-                      </td>
-                      <td className="px-5 py-3.5 text-[12px] text-fg2">{tx.category || '—'}</td>
-                      <td className="px-5 py-3.5 font-mono font-semibold text-[13px] whitespace-nowrap" style={{ color: cfg.color }}>
-                        {fmt(tx.amount)}
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span
-                          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold capitalize"
-                          style={{ background: cfg.bg, color: cfg.color }}
-                        >
-                          {tx.type}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
+      {/* Recent Transactions - Full Width */}
+      <div className="bg-panel border border-rim rounded-2xl overflow-hidden anim-fade-up mt-5" style={{ animationDelay: '260ms' }}>
+        <div className="px-6 pt-5 pb-3 border-b border-rim">
+          <h2 className="font-display text-[14.5px] font-bold tracking-tight">Recent Transactions</h2>
+          <p className="text-[11.5px] text-white mt-0.5">Last 5 entries</p>
         </div>
+
+        {recent.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-14 gap-2 text-white">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="opacity-25 mb-2">
+              <rect x="2" y="3" width="20" height="14" rx="2"/>
+              <line x1="8" y1="21" x2="16" y2="21"/>
+              <line x1="12" y1="17" x2="12" y2="21"/>
+            </svg>
+            <p className="text-[13px] text-white font-medium">No transactions yet</p>
+            <p className="text-[11.5px] text-white">Add your first transaction above</p>
+          </div>
+        ) : (
+          <table className="w-full">
+            <thead>
+              <tr style={{ background: 'rgba(255,255,255,0.01)' }}>
+                {['Date', 'Description', 'Category', 'Amount', 'Type'].map(h => (
+                  <th key={h} className="text-left px-5 py-2.5 text-[10px] font-bold uppercase tracking-[0.1em] text-white border-b border-rim">
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {recent.map((tx) => {
+                const cfg = TYPE_CFG[tx.type] || TYPE_CFG.income;
+                return (
+                  <tr key={tx.id} className="border-b border-rim last:border-0" style={{ transition: 'background 0.15s' }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.018)'}
+                      onMouseLeave={e => e.currentTarget.style.background = ''}>
+                    <td className="px-5 py-3.5 font-mono text-[11.5px] text-fg3 whitespace-nowrap">{fmtDate(tx.date)}</td>
+                    <td className="px-5 py-3.5 text-[13px] font-medium text-fg1 max-w-[140px]">
+                      <span className="block truncate">{tx.description || '—'}</span>
+                    </td>
+                    <td className="px-5 py-3.5 text-[12px] text-fg2">{tx.category || '—'}</td>
+                    <td className="px-5 py-3.5 font-mono font-semibold text-[13px] whitespace-nowrap" style={{ color: cfg.color }}>
+                      {fmt(tx.amount)}
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <span
+                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold capitalize"
+                        style={{ background: cfg.bg, color: cfg.color }}
+                      >
+                        {tx.type}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

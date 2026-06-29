@@ -12,9 +12,10 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-"dependencies": {
+  "dependencies": {
     "express": "^5.2.1",
-    "pg": "^8.22.0"
+    "pg": "^8.22.0",
+    "recharts": "^3.9.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",
