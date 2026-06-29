@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import AddTransactionModal from './AddTransactionModal';
 
 const fmt = (v) =>
   new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(Number(v) || 0);
@@ -49,6 +50,7 @@ export default function TransactionList({ filter = 'all', onDelete }) {
   const [active,   setActive]   = useState(filter);
   const [loading,  setLoading]  = useState(true);
   const [deleting, setDeleting] = useState(null);
+  const [editingTx, setEditingTx] = useState(null);
 
   useEffect(() => {
     fetch('/api/transactions')
@@ -66,6 +68,14 @@ export default function TransactionList({ filter = 'all', onDelete }) {
     } finally {
       setDeleting(null);
     }
+  }
+
+  function handleEditSuccess() {
+    setEditingTx(null);
+    fetch('/api/transactions')
+      .then(r => r.json())
+      .then(data => setTxs(Array.isArray(data) ? data : []))
+      .catch(() => {});
   }
 
   const filtered = active === 'all' ? txs : txs.filter(t => t.type === active);
@@ -177,23 +187,38 @@ export default function TransactionList({ filter = 'all', onDelete }) {
                         </span>
                       </td>
                       <td className="px-6 py-3.5">
-                        <button
-                          onClick={() => handleDelete(tx.id)}
-                          disabled={deleting === tx.id}
-                          className="w-7 h-7 rounded-md border border-rim2 flex items-center justify-center text-fg3 transition-all duration-150 cursor-pointer disabled:opacity-50"
-                          style={{ background: 'transparent' }}
-                          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,61,107,0.1)'; e.currentTarget.style.color = '#ff3d6b'; e.currentTarget.style.borderColor = '#ff3d6b'; }}
-                          onMouseLeave={e => { e.currentTarget.style.background = ''; e.currentTarget.style.color = ''; e.currentTarget.style.borderColor = ''; }}
-                        >
-                          {deleting === tx.id ? (
-                            <span
-                              className="w-3 h-3 rounded-full border border-fg3 border-t-transparent"
-                              style={{ animation: 'spin 0.7s linear infinite' }}
-                            />
-                          ) : (
-                            <TrashIcon />
-                          )}
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setEditingTx(tx)}
+                            className="w-7 h-7 rounded-md border border-rim2 flex items-center justify-center text-fg3 transition-all duration-150 cursor-pointer"
+                            style={{ background: 'transparent' }}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(94,96,240,0.1)'; e.currentTarget.style.color = '#5e60f0'; e.currentTarget.style.borderColor = '#5e60f0'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = ''; e.currentTarget.style.color = ''; e.currentTarget.style.borderColor = ''; }}
+                            title="Edit transaction"
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => handleDelete(tx.id)}
+                            disabled={deleting === tx.id}
+                            className="w-7 h-7 rounded-md border border-rim2 flex items-center justify-center text-fg3 transition-all duration-150 cursor-pointer disabled:opacity-50"
+                            style={{ background: 'transparent' }}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,61,107,0.1)'; e.currentTarget.style.color = '#ff3d6b'; e.currentTarget.style.borderColor = '#ff3d6b'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = ''; e.currentTarget.style.color = ''; e.currentTarget.style.borderColor = ''; }}
+                            title="Delete transaction"
+                          >
+                            {deleting === tx.id ? (
+                              <span
+                                className="w-3 h-3 rounded-full border border-fg3 border-t-transparent"
+                                style={{ animation: 'spin 0.7s linear infinite' }}
+                              />
+                            ) : (
+                              <TrashIcon />
+                            )}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -203,6 +228,14 @@ export default function TransactionList({ filter = 'all', onDelete }) {
           </div>
         )}
       </div>
+
+      {editingTx && (
+        <AddTransactionModal
+          transaction={editingTx}
+          onClose={() => setEditingTx(null)}
+          onSuccess={handleEditSuccess}
+        />
+      )}
     </div>
   );
 }

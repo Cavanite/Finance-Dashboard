@@ -32,6 +32,9 @@ async function processRecurringExpenses() {
         const result = await pool.query('SELECT * FROM recurring_expenses WHERE is_active = true');
         const recurringExpenses = result.rows;
         const today = new Date().toISOString().split('T')[0];
+        const todayDate = new Date(today);
+        const todayDay = todayDate.getDate();
+        const todayDayOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][todayDate.getDay()];
 
         for (const recurring of recurringExpenses) {
             // Check if expense has ended
@@ -46,7 +49,6 @@ async function processRecurringExpenses() {
 
             let shouldGenerate = false;
             const lastGenerated = recurring.last_generated ? new Date(recurring.last_generated) : null;
-            const todayDate = new Date(today);
 
             if (!lastGenerated) {
                 // Never generated before, create one for start date if today >= start_date
@@ -59,11 +61,21 @@ async function processRecurringExpenses() {
                         shouldGenerate = daysDiff >= 1;
                         break;
                     case 'weekly':
-                        shouldGenerate = daysDiff >= 7;
+                        // If day_of_week is set, only generate on that day
+                        if (recurring.day_of_week) {
+                            shouldGenerate = todayDayOfWeek === recurring.day_of_week && daysDiff >= 1;
+                        } else {
+                            shouldGenerate = daysDiff >= 7;
+                        }
                         break;
                     case 'monthly':
-                        shouldGenerate = todayDate.getMonth() !== lastGenerated.getMonth() || 
-                                       todayDate.getFullYear() !== lastGenerated.getFullYear();
+                        // If day_of_month is set, only generate on that day
+                        if (recurring.day_of_month) {
+                            shouldGenerate = todayDay === recurring.day_of_month && daysDiff >= 1;
+                        } else {
+                            shouldGenerate = todayDate.getMonth() !== lastGenerated.getMonth() || 
+                                           todayDate.getFullYear() !== lastGenerated.getFullYear();
+                        }
                         break;
                     case 'yearly':
                         shouldGenerate = todayDate.getFullYear() !== lastGenerated.getFullYear();
@@ -166,9 +178,18 @@ app.use('/api', (req, res, next) => {
            end_date DATE,
            last_generated DATE,
            is_active BOOLEAN DEFAULT true,
+           day_of_month INTEGER,
+           day_of_week VARCHAR(10),
            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     `);
+        
+        // Add columns if they don't exist (for existing installations)
+        await pool.query(`
+            ALTER TABLE recurring_expenses
+            ADD COLUMN IF NOT EXISTS day_of_month INTEGER,
+            ADD COLUMN IF NOT EXISTS day_of_week VARCHAR(10)
+        `);
         await pool.query(`
            CREATE TABLE IF NOT EXISTS users (
            id SERIAL PRIMARY KEY,
@@ -339,6 +360,23 @@ app.post('/api/transactions', async (req, res) => {
             [amount, category, description, date, type]
         );
         res.status(201).json(result.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.put('/api/transactions/:id', async (req, res) => {
+    const { id } = req.params;
+    const { amount, category, description, date, type } = req.body;
+    try {
+        const result = await pool.query(
+            'UPDATE transactions SET amount = $1, category = $2, description = $3, date = $4, type = $5 WHERE id = $6 RETURNING *',
+            [amount, category, description, date, type, id]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Transaction not found' });
+        }
+        res.json(result.rows[0]);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

@@ -28,15 +28,21 @@ function AddRecurringModal({ onClose, onSuccess }) {
     frequency: 'monthly',
     start_date: new Date().toISOString().split('T')[0],
     end_date: '',
+    day_of_month: '',
+    day_of_week: '',
   });
 
   async function handleSubmit(e) {
     e.preventDefault();
     try {
+      const submitData = { ...form };
+      if (!submitData.day_of_month) submitData.day_of_month = null;
+      if (!submitData.day_of_week) submitData.day_of_week = null;
+       
       const res = await fetch('/api/recurring-expenses', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('ff_token')}` },
-        body: JSON.stringify(form),
+        body: JSON.stringify(submitData),
       });
       if (res.ok) {
         onSuccess();
@@ -97,7 +103,7 @@ function AddRecurringModal({ onClose, onSuccess }) {
             <select
               required
               value={form.frequency}
-              onChange={(e) => setForm({ ...form, frequency: e.target.value })}
+              onChange={(e) => setForm({ ...form, frequency: e.target.value, day_of_month: '', day_of_week: '' })}
               className="w-full px-3 py-2.5 bg-base border border-rim rounded-lg text-fg1 text-[13px] focus:outline-none focus:border-accent transition-colors"
             >
               <option value="daily">Daily</option>
@@ -106,6 +112,44 @@ function AddRecurringModal({ onClose, onSuccess }) {
               <option value="yearly">Yearly</option>
             </select>
           </div>
+
+          {form.frequency === 'weekly' && (
+            <div>
+              <label className="block text-[12px] font-semibold text-fg2 uppercase tracking-wide mb-2">Day of Week (Optional)</label>
+              <select
+                value={form.day_of_week}
+                onChange={(e) => setForm({ ...form, day_of_week: e.target.value })}
+                className="w-full px-3 py-2.5 bg-base border border-rim rounded-lg text-fg1 text-[13px] focus:outline-none focus:border-accent transition-colors"
+              >
+                <option value="">Any day (every 7 days)</option>
+                <option value="Monday">Monday</option>
+                <option value="Tuesday">Tuesday</option>
+                <option value="Wednesday">Wednesday</option>
+                <option value="Thursday">Thursday</option>
+                <option value="Friday">Friday</option>
+                <option value="Saturday">Saturday</option>
+                <option value="Sunday">Sunday</option>
+              </select>
+            </div>
+          )}
+
+          {form.frequency === 'monthly' && (
+            <div>
+              <label className="block text-[12px] font-semibold text-fg2 uppercase tracking-wide mb-2">Day of Month (Optional)</label>
+              <select
+                value={form.day_of_month}
+                onChange={(e) => setForm({ ...form, day_of_month: e.target.value })}
+                className="w-full px-3 py-2.5 bg-base border border-rim rounded-lg text-fg1 text-[13px] focus:outline-none focus:border-accent transition-colors"
+              >
+                <option value="">Any day (every month)</option>
+                {[...Array(31)].map((_, i) => (
+                  <option key={i + 1} value={i + 1}>
+                    {i + 1}{['st', 'nd', 'rd'][i % 3] || 'th'} of the month
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>

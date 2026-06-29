@@ -5,14 +5,22 @@ const inputCls = [
   'transition-colors duration-150 placeholder:text-fg3',
 ].join(' ');
 
-export default function AddTransactionModal({ onClose, onSuccess }) {
-  const [form, setForm] = useState({
-    amount:      '',
-    type:        'expense',
-    category:    '',
-    description: '',
-    date:        new Date().toISOString().split('T')[0],
-  });
+export default function AddTransactionModal({ onClose, onSuccess, transaction = null }) {
+  const [form, setForm] = useState(
+    transaction ? {
+      amount:      transaction.amount,
+      type:        transaction.type,
+      category:    transaction.category || '',
+      description: transaction.description || '',
+      date:        transaction.date,
+    } : {
+      amount:      '',
+      type:        'expense',
+      category:    '',
+      description: '',
+      date:        new Date().toISOString().split('T')[0],
+    }
+  );
   const [submitting, setSubmitting] = useState(false);
   const [error,      setError]      = useState('');
 
@@ -27,8 +35,10 @@ export default function AddTransactionModal({ onClose, onSuccess }) {
     setError('');
     setSubmitting(true);
     try {
-      const res = await fetch('/api/transactions', {
-        method: 'POST',
+      const method = transaction ? 'PUT' : 'POST';
+      const url = transaction ? `/api/transactions/${transaction.id}` : '/api/transactions';
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...form, amount: Number(form.amount) }),
       });
@@ -62,8 +72,12 @@ export default function AddTransactionModal({ onClose, onSuccess }) {
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-5">
           <div>
-            <h2 className="font-display text-[17px] font-extrabold tracking-tight">New Transaction</h2>
-            <p className="text-[12px] text-fg3 mt-0.5">Record an income, expense, or savings entry</p>
+            <h2 className="font-display text-[17px] font-extrabold tracking-tight">
+              {transaction ? 'Edit Transaction' : 'New Transaction'}
+            </h2>
+            <p className="text-[12px] text-fg3 mt-0.5">
+              {transaction ? 'Update this transaction' : 'Record an income, expense, or savings entry'}
+            </p>
           </div>
           <button
             onClick={onClose}
