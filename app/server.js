@@ -42,6 +42,19 @@ app.use('/api', (req, res, next) => {
             type VARCHAR(10) CHECK (type IN ('income','expense','savings')) NOT NULL
         );
     `);
+        await pool.query(`
+           CREATE TABLE IF NOT EXISTS recurring_expenses (
+           id SERIAL PRIMARY KEY,
+           amount NUMERIC(10,2) NOT NULL,
+           category VARCHAR(50),
+           description TEXT,
+           frequency VARCHAR(20) CHECK (frequency IN ('daily','weekly','monthly','yearly')) NOT NULL,
+           start_date DATE DEFAULT CURRENT_DATE,
+           end_date DATE,
+           last_generated DATE,
+           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    `);
         console.log('DB ready');
     } catch (err) {
     console.error('DB init error:', err.message);
@@ -215,6 +228,89 @@ app.delete('/api/transactions/:id', async (req, res) => {
             return res.status(404).json({ error: 'Transaction not found' });
         }
         res.json({ message: 'Transaction deleted', transaction: result.rows[0] });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Recurring Expenses Endpoints
+
+app.get('/api/recurring-expenses', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM recurring_expenses ORDER BY created_at DESC');
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/recurring-expenses', async (req, res) => {
+    const { amount, category, description, frequency, start_date, end_date } = req.body;
+    try {
+        const result = await pool.query(
+            'INSERT INTO recurring_expenses (amount, category, description, frequency, start_date, end_date) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+            [amount, category, description, frequency, start_date, end_date]
+        );
+        res.status(201).json(result.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.put('/api/recurring-expenses/:id', async (req, res) => {
+    const { id } = req.params;
+    const { amount, category, description, frequency, start_date, end_date } = req.body;
+    try {
+        const result = await pool.query(
+            'UPDATE recurring_expenses SET amount = $1, category = $2, description = $3, frequency = $4, start_date = $5, end_date = $6 WHERE id = $7 RETURNING *',
+            [amount, category, description, frequency, start_date, end_date, id]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Recurring expense not found' });
+        }
+        res.json(result.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/recurring-expenses/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const result = await pool.query('DELETE FROM recurring_expenses WHERE id = $1 RETURNING *', [id]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Recurring expense not found' });
+        }
+        res.json({ message: 'Recurring expense deleted', recurring_expense: result.rows[0] });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Generate transactions from recurring expenses
+app.post('/api/recurring-expenses/:id/generate', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const recurringResult = await pool.query('SELECT * FROM recurring_expenses WHERE id = $1', [id]);
+        if (recurringResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Recurring expense not found' });
+        }
+        
+        const recurring = recurringResult.rows[0];
+        const today = new Date().toISOString().split('T')[0];
+        
+        if (recurring.end_date && recurring.end_date < today) {
+            return res.status(400).json({ error: 'Recurring expense has ended' });
+        }
+        
+        const txResult = await pool.query(
+            'INSERT INTO transactions (amount, category, description, date, type) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+            [recurring.amount, recurring.category, recurring.description, today, 'expense']
+        );
+        
+        await pool.query('UPDATE recurring_expenses SET last_generated = $1 WHERE id = $2', [today, id]);
+        
+        res.status(201).json(txResult.rows[0]);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

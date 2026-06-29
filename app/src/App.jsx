@@ -3,6 +3,7 @@ import Dashboard from '../Assets/Components/Dashboard';
 import TransactionList from '../Assets/Components/TransactionList';
 import IncomePage from '../Assets/Components/IncomePage';
 import SavingsPage from '../Assets/Components/SavingsPage';
+import RecurringExpensesPage from '../Assets/Components/RecurringExpensesPage';
 import AddTransactionModal from '../Assets/Components/AddTransactionModal';
 import LoginPage from '../Assets/Components/LoginPage';
 import '../styles.css';
@@ -43,6 +44,14 @@ const NAV = [
     ),
   },
   {
+    id: 'recurring', label: 'Recurring',
+    icon: (
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
+      </svg>
+    ),
+  },
+  {
     id: 'savings', label: 'Savings',
     icon: (
       <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -57,6 +66,7 @@ const PAGE_TITLE = {
   transactions: 'All Transactions',
   income:       'Income',
   expenses:     'Expenses',
+  recurring:    'Recurring Expenses',
   savings:      'Savings',
 };
 
@@ -78,6 +88,7 @@ export default function App() {
   function renderView() {
     if (view === 'dashboard') return <Dashboard key={tick} />;
     if (view === 'income')    return <IncomePage key={tick} onMutate={refresh} />;
+    if (view === 'recurring') return <RecurringExpensesPage key={tick} onMutate={refresh} />;
     if (view === 'savings')   return <SavingsPage key={tick} onMutate={refresh} />;
     if (view === 'expenses')  return <TransactionList filter="expense" key={tick} onDelete={refresh} />;
     return                           <TransactionList filter="all"     key={tick} onDelete={refresh} />;
